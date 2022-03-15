@@ -40,8 +40,8 @@ def get_statistics(filename, top_k_concepts):
     sorted_concepts_desc = np.argsort(list(dict_concept_counter.values()))[::-1][:k]
     sorted_concepts_asc = np.argsort(list(dict_concept_counter.values()))[:k]
 
-    most_frequent_concepts = [list(dict_concept_counter.values())[i] for i in sorted_concepts_desc]
-    less_frequent_concepts = [list(dict_concept_counter.values())[i] for i in sorted_concepts_asc]
+    most_frequent_concepts = [list(dict_concept_counter.keys())[i] for i in sorted_concepts_desc]
+    less_frequent_concepts = [list(dict_concept_counter.keys())[i] for i in sorted_concepts_asc]
 
     list_of_concepts_per_image = []
     for i in range(max(list_cuis) + 1):
@@ -84,9 +84,9 @@ if __name__ == "__main__":
     print(f"Minimum number of concepts per image: {min(list_cuis)}")
     print(f"Maximum number of concepts per image: {max(list_cuis)}")
     print(
-        f"Less frequent concepts (top-{top_k_concepts}): {' '.join([get_concept_by_value(dict_concept_counter, c) for c in most_frequent_concepts])}")
+        f"Less frequent concepts (top-{top_k_concepts}): {' '.join(most_frequent_concepts)}")
     print(
-        f"Most frequent concepts (top-{top_k_concepts}): {' '.join([get_concept_by_value(dict_concept_counter, c) for c in less_frequent_concepts])}")
+        f"Most frequent concepts (top-{top_k_concepts}): {' '.join(less_frequent_concepts)}")
 
     # Plot chart
     plot_bar_chart(list_cuis, list_of_concepts_per_image, title="Training Data")
@@ -105,9 +105,9 @@ if __name__ == "__main__":
     print(f"Minimum number of concepts per image: {min(list_cuis)}")
     print(f"Maximum number of concepts per image: {max(list_cuis)}")
     print(
-        f"Less frequent concepts (top-{top_k_concepts}): {' '.join([get_concept_by_value(dict_concept_counter, c) for c in most_frequent_concepts])}")
+        f"Less frequent concepts (top-{top_k_concepts}): {' '.join(most_frequent_concepts)}")
     print(
-        f"Most frequent concepts (top-{top_k_concepts}): {' '.join([get_concept_by_value(dict_concept_counter, c) for c in less_frequent_concepts])}")
+        f"Most frequent concepts (top-{top_k_concepts}): {' '.join(less_frequent_concepts)}")
 
     # Plot chart
     plot_bar_chart(list_cuis, list_of_concepts_per_image, title="Validation Data")
