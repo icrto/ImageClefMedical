@@ -1,5 +1,6 @@
 # Imports
 import os
+import tqdm
 import pandas as pd
 import numpy as np
 
@@ -55,7 +56,7 @@ mi_array = np.zeros(shape=(len(concept_dict), len(concept_dict)))
 
 
 # Iterate through all the samples
-for idx_c in range(len(concept_dict)):
+for idx_c in tqdm.tqdm(range(len(concept_dict))):
     
     # Define features array
     features = data_arr.copy()
@@ -70,7 +71,14 @@ for idx_c in range(len(concept_dict)):
 
     # Populate Mutual Information Array
     mi_array[idx_c, :] = mi
-    print(mi_array[idx_c, :])
+    # print(mi_array[idx_c, :])
+
+
+
+# Save this array
+save_path = "data/mi_array.npy"
+np.save(file=save_path, arr=mi_array, allow_pickle=True)
+
 
 
 print("Finished")
