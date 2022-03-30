@@ -64,7 +64,7 @@ new_train_subset["cuis"] = new_train_concepts
 
 # Save this into .CSV
 new_train_subset_df = pd.DataFrame(data=new_train_subset)
-new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t")
+new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
 
 
 
@@ -99,7 +99,7 @@ new_val_subset["cuis"] = new_val_concepts
 
 # Save this into .CSV
 new_val_subset_df = pd.DataFrame(data=new_val_subset)
-new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t")
+new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
 
 
 print("Finished.")
