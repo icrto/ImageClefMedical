@@ -37,7 +37,8 @@ _, _, _, most_frequent_concepts, _, _ = get_statistics(filename=os.path.join(DAT
 concepts_train_df = pd.read_csv(os.path.join(DATA_DIR, CONCEPTS_TRAIN), sep="\t")
 
 # Iterate through train subset and generate a new subset with these concepts
-new_train_subset = list()
+new_train_images = list()
+new_train_concepts = list()
 
 for index, row in tqdm.tqdm(concepts_train_df.iterrows()):
     
@@ -49,10 +50,20 @@ for index, row in tqdm.tqdm(concepts_train_df.iterrows()):
     # Populate data array with ones where we have concepts
     for c in concepts:
         if c in most_frequent_concepts:
-            new_train_subset.append([image, concepts])
+            new_train_images.append(image)
+            new_train_concepts.append(concepts)
             break
-    
-print(len(new_train_subset))
+
+
+# Create a dictionary to obtain DataFrame later
+new_train_subset = dict()
+new_train_subset["ID"] = new_train_images
+new_train_subset["cuis"] = new_train_concepts
+# print(len(new_train_subset))
+
+# Save this into .CSV
+new_train_subset_df = pd.DataFrame(data=new_train_subset)
+new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t")
 
 
 
@@ -60,7 +71,8 @@ print(len(new_train_subset))
 concepts_val_df = pd.read_csv(os.path.join(DATA_DIR, CONCEPTS_VAL), sep="\t")
 
 # Iterate through train subset and generate a new subset with these concepts
-new_val_subset = list()
+new_val_images = list()
+new_val_concepts = list()
 
 for index, row in tqdm.tqdm(concepts_val_df.iterrows()):
     
@@ -72,10 +84,20 @@ for index, row in tqdm.tqdm(concepts_val_df.iterrows()):
     # Populate data array with ones where we have concepts
     for c in concepts:
         if c in most_frequent_concepts:
-            new_val_subset.append([image, concepts])
+            new_val_images.append(image)
+            new_val_concepts.append(concepts)
             break
-    
-print(len(new_val_subset))
+
+
+# Create a dictionary to obtain DataFrame later
+new_val_subset = dict()
+new_val_subset["ID"] = new_val_images
+new_val_subset["cuis"] = new_val_concepts
+# print(len(new_val_subset))
+
+# Save this into .CSV
+new_val_subset_df = pd.DataFrame(data=new_val_subset)
+new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t")
 
 
 print("Finished.")
