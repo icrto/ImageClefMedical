@@ -44,11 +44,12 @@ for index, row in tqdm.tqdm(concepts_train_df.iterrows()):
     
     # Parse image and concepts
     image = row["ID"]
-    concepts = row["cuis"].split(';')
+    concepts = row["cuis"]
+    concepts_list = row["cuis"].split(';')
     # print(concepts)
 
     # Populate data array with ones where we have concepts
-    for c in concepts:
+    for c in concepts_list:
         if c in most_frequent_concepts:
             new_train_images.append(image)
             new_train_concepts.append(concepts)
@@ -78,11 +79,12 @@ for index, row in tqdm.tqdm(concepts_val_df.iterrows()):
     
     # Parse image and concepts
     image = row["ID"]
-    concepts = row["cuis"].split(';')
+    concepts = row["cuis"]
+    concepts_list = row["cuis"].split(';')
     # print(concepts)
 
     # Populate data array with ones where we have concepts
-    for c in concepts:
+    for c in concepts_list:
         if c in most_frequent_concepts:
             new_val_images.append(image)
             new_val_concepts.append(concepts)
