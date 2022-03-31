@@ -127,7 +127,7 @@ for index, row in tqdm.tqdm(concepts_val_df.iterrows()):
         if c in most_frequent_concepts:
             new_concepts += f"{c};"
     
-    if len(new_val_concepts) > 0:
+    if len(new_concepts) > 0:
         new_concepts = new_concepts[:-1]
         new_val_images.append(image)
         new_val_concepts.append(new_concepts)
