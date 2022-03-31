@@ -21,15 +21,19 @@ def get_concepts_dicts(data_dir, concepts_csv):
     # Create index dict to map concepts later  
     concept_dict_name_to_idx = dict()
     concept_dict_idx_to_name = dict()
+    concept_dict_name_to_desc = dict()
 
     for index, row in concepts_df.iterrows():
         concept_dict_name_to_idx[row["concept"]] = index
         concept_dict_idx_to_name[index] = row["concept"]
+        concept_dict_name_to_desc[row["concept"]] = row["concept_name"]
 
-    # print(concept_dict)
+    # print(concept_dict_name_to_idx)
+    # print(concept_dict_idx_to_name)
+    # print(concept_dict_name_to_desc)
     
 
-    return concept_dict_name_to_idx, concept_dict_idx_to_name
+    return concept_dict_name_to_idx, concept_dict_idx_to_name, concept_dict_name_to_desc
 
 
 
