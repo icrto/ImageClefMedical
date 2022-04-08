@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
+from torch.utils.tensorboard import SummaryWriter
 from baseline import model, train, validate
 from dataset import ImageDataset
+from asl import AsymmetricLoss
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
@@ -17,10 +19,11 @@ import pandas as pd
 BASE_DIR = '/BARRACUDA8T/ImageCLEF2022/dataset_resized'
 NR_CONCEPTS = 100
 FIGURE_NAME = f"Fig_Loss_DenseNet121_{NR_CONCEPTS}"
-MODEL_TO_SAVE_NAME = f"model_densenet121_test_{NR_CONCEPTS}"
 TRAIN_FE = True # change to False to freeze entire feature extraction backbone
 WORKERS = 12
 IMG_SIZE = (224, 224)
+LOSS = "asl" # [BCE, ASL]
+MODEL_TO_SAVE_NAME = f"model_densenet121_{NR_CONCEPTS}_{LOSS}"
 
 matplotlib.style.use('ggplot')
 
@@ -30,12 +33,19 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #intialize the model
 model = model(pretrained=True, requires_grad=TRAIN_FE, nr_concepts=NR_CONCEPTS).to(device)
 
+tb_writer = SummaryWriter()
+
 # learning parameters
 lr = 0.0001
 epochs = 15
-batch_size = 32
+batch_size = 16
 optimizer = optim.Adam(model.parameters(), lr=lr)
-criterion = nn.BCELoss()
+if(LOSS == 'bce'):
+    criterion = nn.BCELoss()
+elif(LOSS == "asl"):
+    criterion = AsymmetricLoss()
+else:
+    raise ValueError("Please choose only <bce> or <asl> for the LOSS argument.")
 
 # read the training csv file
 if(NR_CONCEPTS == 100):
@@ -57,7 +67,7 @@ train_transform = transforms.Compose([
                                  std=[0.229, 0.224, 0.225])
 ])
 train_data = ImageDataset(
-    train_csv, train=True, df_all_concepts=concept_dict, transform=train_transform
+    train_csv, df_all_concepts=concept_dict, transform=train_transform
 )
 
 # validation dataset
@@ -68,7 +78,7 @@ val_transform = transforms.Compose([
                                  std=[0.229, 0.224, 0.225])
 ])
 valid_data = ImageDataset(
-    val_csv, train=False, df_all_concepts=concept_dict, transform=val_transform
+    val_csv, df_all_concepts=concept_dict, transform=val_transform
 )
 
 # train data loader
@@ -101,34 +111,37 @@ for epoch in range(epochs):
         model, valid_loader, criterion, device
     )
     if valid_epoch_loss < best_val_loss:
+        print(f"Validation loss improved from {best_val_loss} to {valid_epoch_loss}")
         best_val_loss = valid_epoch_loss
         # save model with best val loss
-        # torch.save({
-        #     'epoch': epochs,
-        #     'model_state_dict': model.state_dict(),
-        #     'optimizer_state_dict': optimizer.state_dict(),
-        #     'loss': valid_epoch_loss,
-        # }, f'{MODEL_TO_SAVE_NAME}_best.pth')
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': valid_epoch_loss,
+        }, f'{MODEL_TO_SAVE_NAME}_best.pth')
 
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)
     print(f"Train Loss: {train_epoch_loss:.4f}")
     print(f'Val Loss: {valid_epoch_loss:.4f}')
+    tb_writer.add_scalar('loss/train', train_epoch_loss, epoch)
+    tb_writer.add_scalar('loss/val', valid_epoch_loss, epoch)
 
 # save the trained model to disk
-# torch.save({
-#             'epoch': epochs,
-#             'model_state_dict': model.state_dict(),
-#             'optimizer_state_dict': optimizer.state_dict(),
-#             'loss': valid_epoch_loss,
-# }, f'{MODEL_TO_SAVE_NAME}_last.pth')
+torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': valid_epoch_loss,
+}, f'{MODEL_TO_SAVE_NAME}_last.pth')
 
-# # plot and save the train and validation line graphs
-# plt.figure(figsize=(10, 7))
-# plt.plot(train_loss, color='orange', label='train loss')
-# plt.plot(valid_loss, color='red', label='validation loss')
-# plt.xlabel('Epochs')
-# plt.ylabel('Loss')
-# plt.legend()
-# plt.savefig(f'{FIGURE_NAME}.png')
-# plt.show()
+# plot and save the train and validation line graphs
+plt.figure(figsize=(10, 7))
+plt.plot(train_loss, color='orange', label='train loss')
+plt.plot(valid_loss, color='red', label='validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.savefig(f'{FIGURE_NAME}.png')
+plt.show()

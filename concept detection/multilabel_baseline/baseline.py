@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models as models
 from tqdm import tqdm
+from asl import AsymmetricLoss
 
 
 def model(pretrained, requires_grad, nr_concepts):
@@ -31,15 +32,17 @@ def train(model, dataloader, optimizer, criterion, device):
         optimizer.zero_grad()
         # forward pass
         outputs = model(data)
-        # apply sigmoid activation to get all the outputs between 0 and 1
-        outputs = torch.sigmoid(outputs)
+        if not isinstance(criterion, AsymmetricLoss):
+            # apply sigmoid activation to get all the outputs between 0 and 1
+            outputs = torch.sigmoid(outputs)
         # calculate loss
         loss = criterion(outputs, target)
-        train_running_loss += loss.item()
         # compute gradients
         loss.backward()
         # update optimizer parameters
         optimizer.step()
+        train_running_loss += loss.item()
+
 
     train_loss = train_running_loss / counter
     return train_loss
@@ -57,8 +60,9 @@ def validate(model, dataloader, criterion, device):
             data, target = data['image'].to(device), data['label'].to(device)
             # forward pass
             outputs = model(data)
-            # apply sigmoid activation to get all the outputs between 0 and 1
-            outputs = torch.sigmoid(outputs)
+            if not isinstance(criterion, AsymmetricLoss):
+                # apply sigmoid activation to get all the outputs between 0 and 1
+                outputs = torch.sigmoid(outputs)
             # Calculate loss
             loss = criterion(outputs, target)
             val_running_loss += loss.item()
