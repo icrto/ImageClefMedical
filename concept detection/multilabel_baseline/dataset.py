@@ -6,10 +6,9 @@ import pandas as pd
 import os
 
 class ImageDataset(Dataset):
-    def __init__(self, csv_path, train, df_all_concepts=None, transform=None):
+    def __init__(self, csv_path, df_all_concepts=None, transform=None):
         self.csv_path = csv_path
         self.csv = pd.read_csv(self.csv_path, header=0, sep="\t")
-        self.train = train
         self.df_all_concepts = pd.read_csv(df_all_concepts, sep="\t") if df_all_concepts else None
         self.image_names = self.csv[:]['ID']
         self.transform = transform
