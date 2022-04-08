@@ -12,7 +12,7 @@ import sklearn.metrics
 # Arguments
 DATA_DIR = "."
 TOP_K_CONCEPTS = 100
-SUBSET = 'test' # change to topk to generate csv only for subset of images with topk concepts
+SUBSET = 'valid_all' # change to topk to generate csv only for subset of images with topk concepts
 BASE_DIR = "/BARRACUDA8T/ImageCLEF2022/dataset_resized"
 TRAIN_FE = True # change to False to freeze entire feature extraction backbone
 IMG_SIZE = (224, 224)
@@ -24,7 +24,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model(pretrained=False, requires_grad=TRAIN_FE, nr_concepts=TOP_K_CONCEPTS).to(device)
 
 # load the model checkpoint
-checkpoint = torch.load('model_densenet121_test_100_best.pth')
+checkpoint = torch.load('densenet_asl/model_densenet121_100_asl_best.pth')
 best_loss_epoch = checkpoint["epoch"]
 print(f"Epoch of best val loss {best_loss_epoch}")
 
@@ -43,7 +43,7 @@ elif SUBSET == 'train_all':
 elif SUBSET == 'test':
     test_csv = os.path.join(BASE_DIR, 'test_images.csv')
 else:
-    raise ValueError("Please choose only <topk> or <all> for the SUBSET argument.")
+    raise ValueError("Please choose only <valid_topk>, <valid_all>, <train_topk>, <train_all> or <test> for the SUBSET argument.")
 
 if TOP_K_CONCEPTS == 100:
     df_all_concepts = pd.read_csv(os.path.join(BASE_DIR, "new_top100_concepts.csv"), sep="\t")
@@ -61,7 +61,7 @@ transform = transforms.Compose([
                                  std=[0.229, 0.224, 0.225])
 ])
 test_data = ImageDataset(
-    test_csv, train=False, df_all_concepts=None, transform=transform
+    test_csv, df_all_concepts=None, transform=transform
 )
 
 test_loader = DataLoader(
