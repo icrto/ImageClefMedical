@@ -76,7 +76,7 @@ def build_feature_extractor():
     h1 = MaxPooling2D((3, 3), padding='same', strides = (2, 2))(h1)
 
     features = GlobalAveragePooling2D()(h1)
-    features = Dense(embed_size, activation = 'relu', name = 'medical_features')(features)
+    features = Dense(embed_size, activation = 'tanh', name = 'medical_features')(features)
 
     feat_extractor = Model(img_input, features)
 
@@ -87,7 +87,7 @@ def build_label_encoder():
     x = Dense(num_labels * 2)(label_input)
     x = LeakyReLU(0.2)(x)
     x = Dropout(0.25)(x)
-    x = Dense(embed_size, activation = 'relu')(x)
+    x = Dense(embed_size, activation = 'tanh')(x)
     label_encoder = Model(label_input, x)
     return label_encoder
 
@@ -96,7 +96,7 @@ def make_trainable(net, val):
     for l in net.layers:
       l.trainable = val
 
-def contrastive_loss(y_true, y_pred, margin=2):
+def contrastive_loss(y_true, y_pred, margin=1):
     return K.mean(y_true * K.square(y_pred) + (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
 
 def distance_lambda(image_encodings, label_encodings):
@@ -118,34 +118,7 @@ distance = Lambda(lambda x: distance_lambda(x[0], x[1]), output_shape=(num_label
 
 training_model = Model([input_img, input_label], [distance])
 training_model.compile(optimizer=opt, loss=contrastive_loss)
-training_model.load_weights('./eucl_training_weights_005.h5')
-print('################### DISCRIMINATOR ###################')
-training_model.summary()
-
-def train_for_n(nb_epoch, path='./models'):
-    batch_count = len(train_data) / batch_size
-    gen_loss = []
-    for ee in range(1, nb_epoch + 1):
-        print('-' * 15, 'Epoch %d' % ee, '-' * 15)
-        train_loss = []
-        for e in tqdm(range(int(batch_count))):
-            idx = random.sample(range(0, len(train_data)), batch_size)
-            x_batch_img, x_batch_lbl = train_data[idx]
-            g_loss = training_model.train_on_batch([x_batch_img, concepts.concepts], y = x_batch_lbl)
-            train_loss.append(g_loss)
-        print('Train loss: ' + str(np.average(train_loss)))
-        gen_loss.append(np.average(train_loss))
-        
-        idx = range(0, len(valid_data))
-        valid_loss = []
-        for i in range(0, math.floor(len(valid_data) / num_labels)):
-          valid_data_img, valid_data_lbl = valid_data[range(i*num_labels,i*num_labels+num_labels)]
-          valid_loss.append(training_model.test_on_batch([valid_data_img, concepts.concepts], y = valid_data_lbl))
-        print('Validation Loss: ' + str(np.average(valid_loss)))
-
-        if len(gen_loss) == 1 or np.average(valid_loss) <= np.min(gen_loss) or ee % 25 == 0:
-          feature_extractor.save_weights(path + '/feature_extractor_weights_'+ str(ee) +'.h5')
-          label_encoder.save_weights(path + '/label_encoder_weights_'+ str(ee) +'.h5')
+#training_model.load_weights('./eucl_training_weights_005.h5')
 
 path = "./models"
 if os.path.isdir(path) == True:
@@ -155,7 +128,8 @@ os.mkdir(path)
 checkpoint = ModelCheckpoint('./models/eucl_training_weights_{epoch:03d}.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 early = EarlyStopping(monitor='val_loss', patience=30, verbose=1, mode='min')
 
-#training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint, early], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
+training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint, early], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
+training_model.save_weights('./models/eucl_training_weights_final.h5')
 
 labels = range(0, num_labels)
 labels = to_categorical(labels, num_labels)
@@ -166,20 +140,6 @@ def np_euclidean_distance(image_encodings, label_encodings):
     for lab in label_encodings:
       dist.append(np.sqrt(np.sum(np.square(image_encodings[0] - lab))))
     return np.asarray(dist)
-'''
-def evaluate():
-    contains = 0
-    for idx in range(0, len(test_data)):    
-      test_data_img, test_data_lbl = test_data[idx]
-      image_features = feature_extractor.predict(test_data_img)
-      euclidean_distance_matrix = np_euclidean_distance(image_features, encoded_labels)
-      max_index = np.argmax(euclidean_distance_matrix)
-      print(max_index)
-      if test_data_lbl[0][max_index] == 1:
-        contains += 1
-
-    print('Percentage of closest concepts that exist in the labels: ' + str(contains/len(test_data)))
-'''
 
 def evaluate():
     contains = 0
@@ -218,7 +178,7 @@ def evaluate():
         
     avg = np.average(min_array)
     std = np.std(min_array)
-    threshold = avg - std*0.1
+    threshold = avg + std*0.2
     print(threshold)
     y_pred = np.where(norm_matrix < threshold, 1, 0)
     y_pred = np.reshape(y_pred, (y_pred.shape[0], y_pred.shape[-1]))
@@ -236,6 +196,5 @@ def evaluate():
     print('F1-Score Top 3: ' + str(sklearn.metrics.f1_score(y_true=y_true, y_pred=np.asarray(top3_predicted_labels), average='samples')))
     print('F1-Score Top 1: ' + str(sklearn.metrics.f1_score(y_true=y_true, y_pred=np.asarray(top1_predicted_labels), average='samples')))
     print('Percentage of closest concepts that exist in the labels: ' + str(contains/len(test_data)))
-
 
 evaluate()
