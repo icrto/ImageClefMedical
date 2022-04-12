@@ -107,16 +107,13 @@ def distance_lambda(image_encodings, label_encodings):
 
 input_imgs = Input(train_shape)
 feature_extractor = build_feature_extractor()
-#feature_extractor.load_weights('./models/feature_extractor_weights_150.h5')
 label_encoder = build_label_encoder()
-#label_encoder.load_weights('./models/label_encoder_weights_150.h5')
 
 input_img = Input(train_shape)
 input_label = Input((num_labels,))
 feat_img = feature_extractor(input_img)
 feat_label = label_encoder(input_label)
 
-#distance = Lambda(lambda x: K.sqrt(K.sum(K.square(x[0] - x[1]), axis=1, keepdims=True)))([feat_img, feat_label])
 distance = Lambda(lambda x: distance_lambda(x[0], x[1]), output_shape=(num_labels,))([feat_img, feat_label])
 
 training_model = Model([input_img, input_label], [distance])
@@ -197,7 +194,7 @@ def evaluate():
         image_features = feature_extractor.predict(test_data_img)
         distance_image = np_euclidean_distance(image_features, encoded_labels)
         euclidean_distance_matrix.append(distance_image)
-        top5 = distance_image.argsort()[:5][::-1]
+        top5 = distance_image.argsort()[:5]
         top3 = top5[:3]
         top1 = top5[0]
         pred = np.zeros((num_labels,))
@@ -215,15 +212,15 @@ def evaluate():
     
     norm_matrix = (euclidean_distance_matrix-np.min(euclidean_distance_matrix))/np.max(euclidean_distance_matrix-np.min(euclidean_distance_matrix))
 
-    max_array = []
+    min_array = []
     for i in range(len(norm_matrix)):
-        max_array.append(np.max(norm_matrix[i]))
+        min_array.append(np.min(norm_matrix[i]))
         
-    avg = np.average(max_array)
-    std = np.std(max_array)
-    threshold = avg + std*0.2
+    avg = np.average(min_array)
+    std = np.std(min_array)
+    threshold = avg - std*0.1
     print(threshold)
-    y_pred = np.where(norm_matrix > threshold, 1, 0)
+    y_pred = np.where(norm_matrix < threshold, 1, 0)
     y_pred = np.reshape(y_pred, (y_pred.shape[0], y_pred.shape[-1]))
     for i in range(len(y_pred)):
         y_pred[i][np.where(top1_predicted_labels[i] == 1)[0]] = 1
