@@ -1,9 +1,9 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import models as models
 from tqdm import tqdm
 from asl import AsymmetricLoss
-
 
 def model(pretrained, requires_grad, nr_concepts):
     model = models.densenet121(progress=True, pretrained=pretrained)
@@ -21,7 +21,7 @@ def model(pretrained, requires_grad, nr_concepts):
 
 
 # training function
-def train(model, dataloader, optimizer, criterion, device):
+def train(model, dataloader, optimizer, criterion, device, weights):
     print('Training')
     model.train()
     counter = 0
@@ -32,24 +32,26 @@ def train(model, dataloader, optimizer, criterion, device):
         optimizer.zero_grad()
         # forward pass
         outputs = model(data)
-        if not isinstance(criterion, AsymmetricLoss):
+        if not isinstance(criterion, AsymmetricLoss) and not isinstance(criterion, nn.BCEWithLogitsLoss):
             # apply sigmoid activation to get all the outputs between 0 and 1
             outputs = torch.sigmoid(outputs)
         # calculate loss
         loss = criterion(outputs, target)
+        if isinstance(criterion, nn.BCELoss):
+            print("Entrei aqui")
+            loss = (loss * weights).mean()
         # compute gradients
         loss.backward()
         # update optimizer parameters
         optimizer.step()
         train_running_loss += loss.item()
 
-
     train_loss = train_running_loss / counter
     return train_loss
 
 
 # validation function
-def validate(model, dataloader, criterion, device):
+def validate(model, dataloader, criterion, device, weights):
     print('Validating')
     model.eval()
     counter = 0
@@ -60,11 +62,13 @@ def validate(model, dataloader, criterion, device):
             data, target = data['image'].to(device), data['label'].to(device)
             # forward pass
             outputs = model(data)
-            if not isinstance(criterion, AsymmetricLoss):
+            if not isinstance(criterion, AsymmetricLoss) and not isinstance(criterion, nn.BCEWithLogitsLoss):
                 # apply sigmoid activation to get all the outputs between 0 and 1
                 outputs = torch.sigmoid(outputs)
             # Calculate loss
             loss = criterion(outputs, target)
+            if isinstance(criterion, nn.BCELoss):
+                loss = (loss * weights).mean()
             val_running_loss += loss.item()
 
         val_loss = val_running_loss / counter

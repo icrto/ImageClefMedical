@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from baseline import model, train, validate
 from dataset import ImageDataset
 from asl import AsymmetricLoss
+from utils.aux_functions import compute_pos_weights, get_class_weights
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
@@ -15,14 +16,13 @@ import sklearn.metrics
 import numpy as np
 import pandas as pd
 
-# Arguments
-BASE_DIR = '/BARRACUDA8T/ImageCLEF2022/dataset_resized'
-NR_CONCEPTS = 100
+BASE_DIR = '../../data/dataset_resized'
+NR_CONCEPTS = 100 #8374
 FIGURE_NAME = f"Fig_Loss_DenseNet121_{NR_CONCEPTS}"
 TRAIN_FE = True # change to False to freeze entire feature extraction backbone
 WORKERS = 12
 IMG_SIZE = (224, 224)
-LOSS = "asl" # [BCE, ASL]
+LOSS = "bce" # [BCE, ASL, weighted]
 MODEL_TO_SAVE_NAME = f"model_densenet121_{NR_CONCEPTS}_{LOSS}"
 
 matplotlib.style.use('ggplot')
@@ -38,24 +38,33 @@ tb_writer = SummaryWriter()
 # learning parameters
 lr = 0.0001
 epochs = 15
-batch_size = 16
+batch_size = 32
 optimizer = optim.Adam(model.parameters(), lr=lr)
-if(LOSS == 'bce'):
+weights = 0
+
+if (LOSS == 'bce'):
     criterion = nn.BCELoss()
-elif(LOSS == "asl"):
+    weights_numpy = get_class_weights(n_concepts=NR_CONCEPTS)
+    weights = torch.from_numpy(weights_numpy).to(device)
+elif (LOSS == "asl"):
     criterion = AsymmetricLoss()
+elif (LOSS == "weighted"):
+    # get pos_weights
+    weights_numpy = compute_pos_weights(n_concepts=NR_CONCEPTS)
+    pos_weights = torch.from_numpy(weights_numpy).to(device)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights)
 else:
     raise ValueError("Please choose only <bce> or <asl> for the LOSS argument.")
 
 # read the training csv file
-if(NR_CONCEPTS == 100):
+if (NR_CONCEPTS == 100):
     train_csv = os.path.join(BASE_DIR, 'new_train_subset_top100.csv')
     val_csv = os.path.join(BASE_DIR, 'new_val_subset_top100.csv')
     concept_dict = os.path.join(BASE_DIR, "new_top100_concepts.csv")
 else:
     train_csv = os.path.join(BASE_DIR, 'concept_detection_train.csv')
     val_csv = os.path.join(BASE_DIR, 'concept_detection_valid.csv')
-    concept_dict = os.path.join(BASE_DIR, "new_top100_concepts.csv")
+    concept_dict = os.path.join(BASE_DIR, "concepts.csv")
 
 # train dataset
 train_transform = transforms.Compose([
@@ -105,10 +114,10 @@ best_val_loss = np.inf
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
     train_epoch_loss = train(
-        model, train_loader, optimizer, criterion, device
+        model, train_loader, optimizer, criterion, device, weights
     )
     valid_epoch_loss = validate(
-        model, valid_loader, criterion, device
+        model, valid_loader, criterion, device, weights
     )
     if valid_epoch_loss < best_val_loss:
         print(f"Validation loss improved from {best_val_loss} to {valid_epoch_loss}")
