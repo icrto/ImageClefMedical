@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, default="data/dataset_resized", help="Directory of the data set.")
+parser.add_argument('--data_dir', type=str, default="data/csv/concepts", help="Directory of the data set.")
 
 # Concepts .CSV file
 parser.add_argument('--concepts_csv', type=str, default="concepts.csv", help="Concepts .CSV file.")
@@ -74,7 +74,7 @@ most_frequent_concepts_desc = [concept_dict_name_to_desc.get(c) for c in most_fr
 # Create a dictionary to obtain DataFrame later
 new_csv_concepts = dict()
 new_csv_concepts['concept'] = most_frequent_concepts
-new_csv_concepts[COLUMN_NAME] = most_frequent_concepts_desc
+new_csv_concepts['concept_name'] = most_frequent_concepts_desc
 # print(len(new_csv_concepts))
 
 # Save this into .CSV
