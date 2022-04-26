@@ -1,9 +1,9 @@
 # Imports
 import os
-import tqdm
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
 
 
 # Function: Get concepts by value
@@ -31,6 +31,7 @@ def get_concepts_dicts(data_dir, concepts_csv):
     # print(concept_dict_name_to_desc)
 
     return concept_dict_name_to_idx, concept_dict_idx_to_name, concept_dict_name_to_desc
+
 
 
 # Function: Get statistics
@@ -74,6 +75,7 @@ def get_statistics(filename, top_k_concepts):
     return image_id, list_cuis, dict_concept_counter, most_frequent_concepts, less_frequent_concepts, list_of_concepts_per_image
 
 
+
 # Function: Plot bar chart with statistics
 def plot_bar_chart(list_cuis, list_of_concepts_per_image, title):
     # Plot chart
@@ -84,6 +86,7 @@ def plot_bar_chart(list_cuis, list_of_concepts_per_image, title):
     plt.ylabel('Number of Images')
     plt.xticks(np.arange(0, max(list_cuis) + 1, 1))
     plt.show()
+
 
 
 # Function: Compute pos_weights
@@ -125,6 +128,7 @@ def compute_pos_weights(n_concepts):
     return pos_weights
 
 
+
 # Function: Compute class_weights
 def get_class_weights(n_concepts):
     if n_concepts == 100:
@@ -159,3 +163,17 @@ def get_class_weights(n_concepts):
     class_weights = N / (n_concepts * activated_concepts)
 
     return class_weights
+
+
+
+# Function: Map concepts to semantic types
+def map_concepts_to_semantic(concepts_df, semantic_types_df, column="concept"):
+    
+    # Join the two concepts on "concept"
+    new_df = concepts_df.copy().join(other=semantic_types_df.copy(), on=column, how='left')
+
+    # Drop NaNs
+    new_df = new_df.copy().dropna(axis=0)
+
+
+    return new_df
