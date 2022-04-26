@@ -5,6 +5,7 @@ import tqdm
 import argparse
 import pandas as pd
 
+
 # Append current working directory to PATH to export stuff outside this folder
 if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
@@ -23,8 +24,23 @@ parser = argparse.ArgumentParser()
 # Data directory
 parser.add_argument('--data_dir', type=str, default="data/dataset_resized", help="Directory of the data set.")
 
+# Concepts .CSV file
+parser.add_argument('--concepts_csv', type=str, default="concepts.csv", help="Concepts .CSV file.")
+
+# Concepts Train .CSV file
+parser.add_argument('--concepts_train', type=str, default="concept_detection_train.csv", help="Concepts Train .CSV file.")
+
+# Concepts Val .CSV file
+parser.add_argument('--concepts_val', type=str, default="concept_detection_valid.csv", help="Concepts Val .CSV file.")
+
 # Top-K concepts
 parser.add_argument('--top_k', type=int, default=100, help="The top-K concepts you want to extract.")
+
+# Column name
+parser.add_argument('--column_name', type=str, default="concept_name", help="The column name ot map the concepts.")
+
+# Semantic Types
+parser.add_argument('--semantic_types', action="store_true", help="Activate if you are using semantic types.")
 
 
 # Parse the arguments
@@ -34,15 +50,17 @@ args = parser.parse_args()
 
 # Directories and Files
 DATA_DIR = args.data_dir
-CONCEPTS_CSV = "concepts.csv"
-CONCEPTS_TRAIN = "concept_detection_train.csv"
-CONCEPTS_VAL = "concept_detection_valid.csv"
+CONCEPTS_CSV = args.concepts_csv
+CONCEPTS_TRAIN = args.concepts_train
+CONCEPTS_VAL = args.concepts_val
 TOP_K_CONCEPTS = args.top_k
+COLUMN_NAME = args.column_name
+SEMANTIC_TYPES = args.semantic_types
 
 
 
 # Generate concepts dictionaries
-concept_dict_name_to_idx, concept_dict_idx_to_name, concept_dict_name_to_desc = get_concepts_dicts(data_dir=DATA_DIR, concepts_csv=CONCEPTS_CSV)
+concept_dict_name_to_idx, concept_dict_idx_to_name, concept_dict_name_to_desc = get_concepts_dicts(data_dir=DATA_DIR, concepts_csv=CONCEPTS_CSV, column=COLUMN_NAME)
 
 
 # Get top-k most frequent concepts (in training set)
@@ -56,12 +74,16 @@ most_frequent_concepts_desc = [concept_dict_name_to_desc.get(c) for c in most_fr
 # Create a dictionary to obtain DataFrame later
 new_csv_concepts = dict()
 new_csv_concepts['concept'] = most_frequent_concepts
-new_csv_concepts['concept_name'] = most_frequent_concepts_desc
+new_csv_concepts[COLUMN_NAME] = most_frequent_concepts_desc
 # print(len(new_csv_concepts))
 
 # Save this into .CSV
 new_csv_concepts_df = pd.DataFrame(data=new_csv_concepts)
-new_csv_concepts_df.to_csv(os.path.join(DATA_DIR, f"new_top{TOP_K_CONCEPTS}_concepts.csv"), sep="\t", index=False)
+if SEMANTIC_TYPES:
+    new_csv_concepts_df.to_csv(os.path.join(DATA_DIR, f"new_top{TOP_K_CONCEPTS}_concepts_sem.csv"), sep="\t", index=False)
+
+else:
+    new_csv_concepts_df.to_csv(os.path.join(DATA_DIR, f"new_top{TOP_K_CONCEPTS}_concepts.csv"), sep="\t", index=False)
 
 
 
@@ -102,7 +124,11 @@ new_train_subset["cuis"] = new_train_concepts
 
 # Save this into .CSV
 new_train_subset_df = pd.DataFrame(data=new_train_subset)
-new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
+if SEMANTIC_TYPES:
+    new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}_sem.csv"), sep="\t", index=False)
+
+else:
+    new_train_subset_df.to_csv(os.path.join(DATA_DIR, f"new_train_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
 
 
 
@@ -142,7 +168,10 @@ new_val_subset["cuis"] = new_val_concepts
 
 # Save this into .CSV
 new_val_subset_df = pd.DataFrame(data=new_val_subset)
-new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
+if SEMANTIC_TYPES:
+    new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}_sem.csv"), sep="\t", index=False)
+else:
+    new_val_subset_df.to_csv(os.path.join(DATA_DIR, f"new_val_subset_top{TOP_K_CONCEPTS}.csv"), sep="\t", index=False)
 
 
 print("Finished.")

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 # Function: Get concepts by value
-def get_concepts_dicts(data_dir, concepts_csv):
+def get_concepts_dicts(data_dir, concepts_csv, column="concept_name"):
     """
     data_dir (str): path to the database
     concepts_csv (str): name of the .CSV file that contains the concepts
@@ -24,7 +24,7 @@ def get_concepts_dicts(data_dir, concepts_csv):
     for index, row in concepts_df.iterrows():
         concept_dict_name_to_idx[row["concept"]] = index
         concept_dict_idx_to_name[index] = row["concept"]
-        concept_dict_name_to_desc[row["concept"]] = row["concept_name"]
+        concept_dict_name_to_desc[row["concept"]] = row[column]
 
     # print(concept_dict_name_to_idx)
     # print(concept_dict_idx_to_name)
