@@ -2,7 +2,6 @@
 import os
 import sys
 import argparse
-import numpy as np
 import pandas as pd
 
 
@@ -45,7 +44,7 @@ SEMANTIC_TYPES_CSV = args.semantic_types_csv
 
 # Load .CSV files
 concepts_df = pd.read_csv(os.path.join(DATA_DIR, CONCEPTS_CSV), sep="\t")
-semantic_types_df = pd.read_csv(os.path.join(DATA_DIR, SEMANTIC_TYPES_CSV), sep="\t")
+semantic_types_df = pd.read_csv(os.path.join(DATA_DIR, SEMANTIC_TYPES_CSV), sep=",")
 
 
 # Get processed DataFrame

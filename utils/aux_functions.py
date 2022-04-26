@@ -170,7 +170,8 @@ def get_class_weights(n_concepts):
 def map_concepts_to_semantic(concepts_df, semantic_types_df, column="concept"):
     
     # Join the two concepts on "concept"
-    new_df = concepts_df.copy().join(other=semantic_types_df.copy(), on=column, how='left')
+    # new_df = concepts_df.copy().join(other=semantic_types_df.copy(), on=column, how='left')
+    new_df = concepts_df.copy().merge(right=semantic_types_df.copy(), on=column)
 
     # Drop NaNs
     new_df = new_df.copy().dropna(axis=0)
