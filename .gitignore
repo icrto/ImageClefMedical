@@ -135,3 +135,6 @@ data/dataset_resized/
 *.npy
 *.jpeg
 *.jpg 
+
+# macOS files
+*.DS_Store
