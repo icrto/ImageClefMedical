@@ -1,5 +1,6 @@
 # Imports
 import os
+import sys
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -7,8 +8,8 @@ import datetime
 from torchinfo import summary
 
 # Sklearn Imports
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+# from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+# from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 
 # PyTorch Imports
@@ -22,6 +23,11 @@ from torch.utils.tensorboard import SummaryWriter
 random_seed = 42
 torch.manual_seed(random_seed)
 np.random.seed(random_seed)
+
+
+# Append current working directory to PATH to export stuff outside this folder
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
 
 
 # Project Imports
@@ -219,7 +225,7 @@ train_transforms = torchvision.transforms.Compose([
     torchvision.transforms.Resize(IMG_SIZE if resize_opt == 'resizeshortest_randomcrop' else (IMG_SIZE, IMG_SIZE)),
     torchvision.transforms.RandomCrop(IMG_SIZE if resize_opt == 'resizeshortest_randomcrop' else (IMG_SIZE, IMG_SIZE)),
     torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(0.05, 0.1), scale=(0.95, 1.05), shear=0, resample=0, fillcolor=(0, 0, 0)),
-    torchvision.transforms.RandomHorizontalFlip(p=0.5),
+    # torchvision.transforms.RandomHorizontalFlip(p=0.5),
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Normalize(mean=MEAN, std=STD)
 ])
@@ -235,7 +241,7 @@ valid_transforms = torchvision.transforms.Compose([
 
 # Datasets
 train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms)
-train_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
+valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
 
 
 
@@ -339,10 +345,10 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Using Softmax
         # Apply Softmax on Logits and get the argmax to get the predicted labels
-        s_logits = torch.nn.Softmax(dim=1)(logits)
-        y_train_scores = torch.cat((y_train_scores, s_logits))
-        s_logits = torch.argmax(s_logits, dim=1)
-        y_train_pred = torch.cat((y_train_pred, s_logits))
+        # s_logits = torch.nn.Softmax(dim=1)(logits)
+        # y_train_scores = torch.cat((y_train_scores, s_logits))
+        # s_logits = torch.argmax(s_logits, dim=1)
+        # y_train_pred = torch.cat((y_train_pred, s_logits))
 
 
     # Compute Average Train Loss
@@ -350,16 +356,17 @@ for epoch in range(init_epoch, EPOCHS):
     
 
     # Compute Train Metrics
-    y_train_pred = y_train_pred.cpu().detach().numpy()
-    y_train_scores = y_train_scores.cpu().detach().numpy()
-    train_acc = accuracy_score(y_true=y_train_true, y_pred=y_train_pred)
-    train_recall = recall_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    train_precision = precision_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    train_f1 = f1_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    train_auc = roc_auc_score(y_true=y_train_true, y_score=y_train_scores[:, 1], average='micro')
+    # y_train_pred = y_train_pred.cpu().detach().numpy()
+    # y_train_scores = y_train_scores.cpu().detach().numpy()
+    # train_acc = accuracy_score(y_true=y_train_true, y_pred=y_train_pred)
+    # train_recall = recall_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    # train_precision = precision_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    # train_f1 = f1_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    # train_auc = roc_auc_score(y_true=y_train_true, y_score=y_train_scores[:, 1], average='micro')
 
     # Print Statistics
-    print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}")
+    print(f"Train Loss: {avg_train_loss}")
+    # print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}")
     # print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}\tTrain Recall: {train_recall}\tTrain Precision: {train_precision}\tTrain F1-Score: {train_f1}")
 
 
@@ -373,15 +380,15 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Train Metrics
     # Acc
-    train_metrics[epoch, 0] = train_acc
+    # train_metrics[epoch, 0] = train_acc
     # Recall
-    train_metrics[epoch, 1] = train_recall
+    # train_metrics[epoch, 1] = train_recall
     # Precision
-    train_metrics[epoch, 2] = train_precision
+    # train_metrics[epoch, 2] = train_precision
     # F1-Score
-    train_metrics[epoch, 3] = train_f1
+    # train_metrics[epoch, 3] = train_f1
     # ROC AUC
-    train_metrics[epoch, 4] = train_auc
+    # train_metrics[epoch, 4] = train_auc
 
     # Save it to directory
     fname = os.path.join(history_dir, f"{model_name}_tr_metrics.npy")
@@ -389,11 +396,11 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Plot to Tensorboard
     tbwritter.add_scalar("loss/train", avg_train_loss, global_step=epoch)
-    tbwritter.add_scalar("acc/train", train_acc, global_step=epoch)
-    tbwritter.add_scalar("rec/train", train_recall, global_step=epoch)
-    tbwritter.add_scalar("prec/train", train_precision, global_step=epoch)
-    tbwritter.add_scalar("f1/train", train_f1, global_step=epoch)
-    tbwritter.add_scalar("auc/train", train_auc, global_step=epoch)
+    # tbwritter.add_scalar("acc/train", train_acc, global_step=epoch)
+    # tbwritter.add_scalar("rec/train", train_recall, global_step=epoch)
+    # tbwritter.add_scalar("prec/train", train_precision, global_step=epoch)
+    # tbwritter.add_scalar("f1/train", train_f1, global_step=epoch)
+    # tbwritter.add_scalar("auc/train", train_auc, global_step=epoch)
 
     # Update Variables
     # Min Training Loss
@@ -428,12 +435,7 @@ for epoch in range(init_epoch, EPOCHS):
             images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
 
             # Forward pass: compute predicted outputs by passing inputs to the model
-            if(isinstance(model, ViTForImageClassification) or isinstance(model, DeiTForImageClassification)):
-                out = model(pixel_values=images)
-                logits = out.logits
-            
-            else:
-                logits = model(images)
+            logits = model(images)
             
             # Compute the batch loss
             # Using CrossEntropy w/ Softmax
@@ -445,10 +447,10 @@ for epoch in range(init_epoch, EPOCHS):
 
             # Using Softmax Activation
             # Apply Softmax on Logits and get the argmax to get the predicted labels
-            s_logits = torch.nn.Softmax(dim=1)(logits)                        
-            y_val_scores = torch.cat((y_val_scores, s_logits))
-            s_logits = torch.argmax(s_logits, dim=1)
-            y_val_pred = torch.cat((y_val_pred, s_logits))
+            # s_logits = torch.nn.Softmax(dim=1)(logits)                        
+            # y_val_scores = torch.cat((y_val_scores, s_logits))
+            # s_logits = torch.argmax(s_logits, dim=1)
+            # y_val_pred = torch.cat((y_val_pred, s_logits))
 
         
 
@@ -456,16 +458,17 @@ for epoch in range(init_epoch, EPOCHS):
         avg_val_loss = run_val_loss/len(val_loader.dataset)
 
         # Compute Validation Accuracy
-        y_val_pred = y_val_pred.cpu().detach().numpy()
-        y_val_scores = y_val_scores.cpu().detach().numpy()
-        val_acc = accuracy_score(y_true=y_val_true, y_pred=y_val_pred)
-        val_recall = recall_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        val_precision = precision_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        val_f1 = f1_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        val_auc = roc_auc_score(y_true=y_val_true, y_score=y_val_scores[:, 1], average='micro')
+        # y_val_pred = y_val_pred.cpu().detach().numpy()
+        # y_val_scores = y_val_scores.cpu().detach().numpy()
+        # val_acc = accuracy_score(y_true=y_val_true, y_pred=y_val_pred)
+        # val_recall = recall_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        # val_precision = precision_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        # val_f1 = f1_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        # val_auc = roc_auc_score(y_true=y_val_true, y_score=y_val_scores[:, 1], average='micro')
 
         # Print Statistics
-        print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}")
+        print(f"Validation Loss: {avg_val_loss}")
+        # print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}")
         # print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}\tValidation Recall: {val_recall}\tValidation Precision: {val_precision}\tValidation F1-Score: {val_f1}")
 
         # Append values to the arrays
@@ -478,15 +481,15 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Train Metrics
         # Acc
-        val_metrics[epoch, 0] = val_acc
+        # val_metrics[epoch, 0] = val_acc
         # Recall
-        val_metrics[epoch, 1] = val_recall
+        # val_metrics[epoch, 1] = val_recall
         # Precision
-        val_metrics[epoch, 2] = val_precision
+        # val_metrics[epoch, 2] = val_precision
         # F1-Score
-        val_metrics[epoch, 3] = val_f1
+        # val_metrics[epoch, 3] = val_f1
         # ROC AUC
-        val_metrics[epoch, 4] = val_auc
+        # val_metrics[epoch, 4] = val_auc
 
         # Save it to directory
         fname = os.path.join(history_dir, f"{model_name}_val_metrics.npy")
@@ -494,11 +497,11 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Plot to Tensorboard
         tbwritter.add_scalar("loss/val", avg_val_loss, global_step=epoch)
-        tbwritter.add_scalar("acc/val", val_acc, global_step=epoch)
-        tbwritter.add_scalar("rec/val", val_recall, global_step=epoch)
-        tbwritter.add_scalar("prec/val", val_precision, global_step=epoch)
-        tbwritter.add_scalar("f1/val", val_f1, global_step=epoch)
-        tbwritter.add_scalar("auc/val", val_auc, global_step=epoch)
+        # tbwritter.add_scalar("acc/val", val_acc, global_step=epoch)
+        # tbwritter.add_scalar("rec/val", val_recall, global_step=epoch)
+        # tbwritter.add_scalar("prec/val", val_precision, global_step=epoch)
+        # tbwritter.add_scalar("f1/val", val_f1, global_step=epoch)
+        # tbwritter.add_scalar("auc/val", val_auc, global_step=epoch)
 
         # Update Variables
         # Min validation loss and save if validation loss decreases
@@ -509,7 +512,7 @@ for epoch in range(init_epoch, EPOCHS):
             print("Saving best model on validation...")
 
             # Save checkpoint
-            model_path = os.path.join(weights_dir, f"{model_name}_{dataset.lower()}_best.pt")
+            model_path = os.path.join(weights_dir, f"{model_name}_{semantic_type}_best.pt")
             
             save_dict = {
                 'epoch': epoch,
@@ -526,7 +529,7 @@ for epoch in range(init_epoch, EPOCHS):
         if epoch % save_freq == 0 and epoch > 0:
 
             # Save checkpoint
-            model_path = os.path.join(weights_dir, f"{model_name}_{dataset.lower()}_{epoch:04}.pt")
+            model_path = os.path.join(weights_dir, f"{model_name}_{semantic_type}_{epoch:04}.pt")
 
             save_dict = {
                 'epoch': epoch,
