@@ -137,7 +137,7 @@ class ImgClefConcDataset(Dataset):
 
         # Get images
         img_name = self.img_ids[idx]
-        image = PIL.Image.open(os.path.join(self.img_datapath, f"{img_name}.jpg"))
+        image = PIL.Image.open(os.path.join(self.img_datapath, f"{img_name}.jpg")).convert("RGB")
 
 
         # Get labels

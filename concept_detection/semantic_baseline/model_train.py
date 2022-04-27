@@ -8,8 +8,8 @@ import datetime
 from torchinfo import summary
 
 # Sklearn Imports
-# from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
-# from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 
 # PyTorch Imports
@@ -33,6 +33,7 @@ if os.getcwd() not in sys.path:
 # Project Imports
 from model_utilities import DenseNet121
 from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
+from utils.aux_functions import compute_pos_weights, get_class_weights
 
 
 
@@ -63,7 +64,7 @@ parser.add_argument('--resize', type=str, choices=["direct_resize", "resizeshort
 parser.add_argument("--classweights", action="store_true", help="Weight loss with class imbalance")
 
 # Number of epochs
-parser.add_argument('--epochs', type=int, default=300, help="Number of training epochs")
+parser.add_argument('--epochs', type=int, default=30, help="Number of training epochs")
 
 # Learning rate
 parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
@@ -247,17 +248,19 @@ valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem
 
 # Class weights for loss
 if args.classweights:
-    classes = np.array(range(NR_CLASSES))
-    cw = compute_class_weight('balanced', classes=classes, y=np.array(train_set.img_labels))
-    cw = torch.from_numpy(cw).float().to(DEVICE)
+    # classes = np.array(range(NR_CLASSES))
+    cw = get_class_weights(n_concepts=NR_CLASSES)
+    cw = torch.from_numpy(cw).to(DEVICE)
+    # cw = compute_class_weight('balanced', classes=classes, y=np.array(train_set.img_labels))
+    # cw = torch.from_numpy(cw).float().to(DEVICE)
     print(f"Using class weights {cw}")
 else:
     cw = None
 
 
 # Hyper-parameters
-LOSS = torch.nn.CrossEntropyLoss(reduction="sum", weight=cw)
-VAL_LOSS = torch.nn.CrossEntropyLoss(reduction="sum")
+LOSS = torch.nn.BCELoss(reduction="sum", weight=cw)
+VAL_LOSS = torch.nn.BCELoss(reduction="sum")
 OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 
@@ -301,7 +304,7 @@ for epoch in range(init_epoch, EPOCHS):
     print("Training Phase")
     
     # Initialise lists to compute scores
-    y_train_true = np.empty((0), int)
+    y_train_true = np.empty((0, NR_CLASSES), int)
     y_train_pred = torch.empty(0, dtype=torch.int32, device=DEVICE)
     y_train_scores = torch.empty(0, dtype=torch.float, device=DEVICE) # save scores after softmax for roc auc
 
@@ -315,8 +318,12 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Iterate through dataloader
     for images, labels in tqdm(train_loader):
+        
+        # print(labels.shape)
+
         # Concatenate lists
         y_train_true = np.append(y_train_true, labels.numpy(), axis=0)
+        
 
         # Move data and model to GPU (or not)
         images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
@@ -328,11 +335,13 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Get logits
         logits = model(images)
+        logits = torch.sigmoid(logits)
 
         
         # Compute the batch loss
         # Using CrossEntropy w/ Softmax
-        loss = LOSS(logits, labels)
+        loss = LOSS(logits.double(), labels.double())
+        # print(loss)
 
         # Update batch losses
         run_train_loss += loss
@@ -345,10 +354,10 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Using Softmax
         # Apply Softmax on Logits and get the argmax to get the predicted labels
-        # s_logits = torch.nn.Softmax(dim=1)(logits)
-        # y_train_scores = torch.cat((y_train_scores, s_logits))
-        # s_logits = torch.argmax(s_logits, dim=1)
-        # y_train_pred = torch.cat((y_train_pred, s_logits))
+        s_logits = logits
+        y_train_scores = torch.cat((y_train_scores, s_logits))
+        s_logits[s_logits>0.5] = 1.0
+        y_train_pred = torch.cat((y_train_pred, s_logits))
 
 
     # Compute Average Train Loss
@@ -356,17 +365,17 @@ for epoch in range(init_epoch, EPOCHS):
     
 
     # Compute Train Metrics
-    # y_train_pred = y_train_pred.cpu().detach().numpy()
-    # y_train_scores = y_train_scores.cpu().detach().numpy()
-    # train_acc = accuracy_score(y_true=y_train_true, y_pred=y_train_pred)
-    # train_recall = recall_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    # train_precision = precision_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    # train_f1 = f1_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
-    # train_auc = roc_auc_score(y_true=y_train_true, y_score=y_train_scores[:, 1], average='micro')
+    y_train_pred = y_train_pred.cpu().detach().numpy()
+    y_train_scores = y_train_scores.cpu().detach().numpy()
+    train_acc = accuracy_score(y_true=y_train_true, y_pred=y_train_pred)
+    train_recall = recall_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    train_precision = precision_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    train_f1 = f1_score(y_true=y_train_true, y_pred=y_train_pred, average='micro')
+    train_auc = roc_auc_score(y_true=y_train_true, y_score=y_train_scores[:, 1], average='micro')
 
     # Print Statistics
-    print(f"Train Loss: {avg_train_loss}")
-    # print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}")
+    # print(f"Train Loss: {avg_train_loss}")
+    print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}")
     # print(f"Train Loss: {avg_train_loss}\tTrain Accuracy: {train_acc}\tTrain Recall: {train_recall}\tTrain Precision: {train_precision}\tTrain F1-Score: {train_f1}")
 
 
@@ -380,15 +389,15 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Train Metrics
     # Acc
-    # train_metrics[epoch, 0] = train_acc
+    train_metrics[epoch, 0] = train_acc
     # Recall
-    # train_metrics[epoch, 1] = train_recall
+    train_metrics[epoch, 1] = train_recall
     # Precision
-    # train_metrics[epoch, 2] = train_precision
+    train_metrics[epoch, 2] = train_precision
     # F1-Score
-    # train_metrics[epoch, 3] = train_f1
+    train_metrics[epoch, 3] = train_f1
     # ROC AUC
-    # train_metrics[epoch, 4] = train_auc
+    train_metrics[epoch, 4] = train_auc
 
     # Save it to directory
     fname = os.path.join(history_dir, f"{model_name}_tr_metrics.npy")
@@ -396,11 +405,11 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Plot to Tensorboard
     tbwritter.add_scalar("loss/train", avg_train_loss, global_step=epoch)
-    # tbwritter.add_scalar("acc/train", train_acc, global_step=epoch)
-    # tbwritter.add_scalar("rec/train", train_recall, global_step=epoch)
-    # tbwritter.add_scalar("prec/train", train_precision, global_step=epoch)
-    # tbwritter.add_scalar("f1/train", train_f1, global_step=epoch)
-    # tbwritter.add_scalar("auc/train", train_auc, global_step=epoch)
+    tbwritter.add_scalar("acc/train", train_acc, global_step=epoch)
+    tbwritter.add_scalar("rec/train", train_recall, global_step=epoch)
+    tbwritter.add_scalar("prec/train", train_precision, global_step=epoch)
+    tbwritter.add_scalar("f1/train", train_f1, global_step=epoch)
+    tbwritter.add_scalar("auc/train", train_auc, global_step=epoch)
 
     # Update Variables
     # Min Training Loss
@@ -414,7 +423,7 @@ for epoch in range(init_epoch, EPOCHS):
 
 
     # Initialise lists to compute scores
-    y_val_true = np.empty((0), int)
+    y_val_true = np.empty((0, NR_CLASSES), int)
     y_val_pred = torch.empty(0, dtype=torch.int32, device=DEVICE)
     y_val_scores = torch.empty(0, dtype=torch.float, device=DEVICE) # save scores after softmax for roc auc
 
@@ -436,10 +445,11 @@ for epoch in range(init_epoch, EPOCHS):
 
             # Forward pass: compute predicted outputs by passing inputs to the model
             logits = model(images)
+            logits = torch.sigmoid(logits)
             
             # Compute the batch loss
             # Using CrossEntropy w/ Softmax
-            loss = VAL_LOSS(logits, labels)
+            loss = VAL_LOSS(logits.double(), labels.double())
             
             # Update batch losses
             run_val_loss += loss
@@ -447,10 +457,10 @@ for epoch in range(init_epoch, EPOCHS):
 
             # Using Softmax Activation
             # Apply Softmax on Logits and get the argmax to get the predicted labels
-            # s_logits = torch.nn.Softmax(dim=1)(logits)                        
-            # y_val_scores = torch.cat((y_val_scores, s_logits))
-            # s_logits = torch.argmax(s_logits, dim=1)
-            # y_val_pred = torch.cat((y_val_pred, s_logits))
+            s_logits = logits                        
+            y_val_scores = torch.cat((y_val_scores, s_logits))
+            s_logits[s_logits>0.5] = 1.0
+            y_val_pred = torch.cat((y_val_pred, s_logits))
 
         
 
@@ -458,17 +468,17 @@ for epoch in range(init_epoch, EPOCHS):
         avg_val_loss = run_val_loss/len(val_loader.dataset)
 
         # Compute Validation Accuracy
-        # y_val_pred = y_val_pred.cpu().detach().numpy()
-        # y_val_scores = y_val_scores.cpu().detach().numpy()
-        # val_acc = accuracy_score(y_true=y_val_true, y_pred=y_val_pred)
-        # val_recall = recall_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        # val_precision = precision_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        # val_f1 = f1_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
-        # val_auc = roc_auc_score(y_true=y_val_true, y_score=y_val_scores[:, 1], average='micro')
+        y_val_pred = y_val_pred.cpu().detach().numpy()
+        y_val_scores = y_val_scores.cpu().detach().numpy()
+        val_acc = accuracy_score(y_true=y_val_true, y_pred=y_val_pred)
+        val_recall = recall_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        val_precision = precision_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        val_f1 = f1_score(y_true=y_val_true, y_pred=y_val_pred, average='micro')
+        val_auc = roc_auc_score(y_true=y_val_true, y_score=y_val_scores[:, 1], average='micro')
 
         # Print Statistics
-        print(f"Validation Loss: {avg_val_loss}")
-        # print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}")
+        # print(f"Validation Loss: {avg_val_loss}")
+        print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}")
         # print(f"Validation Loss: {avg_val_loss}\tValidation Accuracy: {val_acc}\tValidation Recall: {val_recall}\tValidation Precision: {val_precision}\tValidation F1-Score: {val_f1}")
 
         # Append values to the arrays
@@ -481,15 +491,15 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Train Metrics
         # Acc
-        # val_metrics[epoch, 0] = val_acc
+        val_metrics[epoch, 0] = val_acc
         # Recall
-        # val_metrics[epoch, 1] = val_recall
+        val_metrics[epoch, 1] = val_recall
         # Precision
-        # val_metrics[epoch, 2] = val_precision
+        val_metrics[epoch, 2] = val_precision
         # F1-Score
-        # val_metrics[epoch, 3] = val_f1
+        val_metrics[epoch, 3] = val_f1
         # ROC AUC
-        # val_metrics[epoch, 4] = val_auc
+        val_metrics[epoch, 4] = val_auc
 
         # Save it to directory
         fname = os.path.join(history_dir, f"{model_name}_val_metrics.npy")
@@ -497,11 +507,11 @@ for epoch in range(init_epoch, EPOCHS):
 
         # Plot to Tensorboard
         tbwritter.add_scalar("loss/val", avg_val_loss, global_step=epoch)
-        # tbwritter.add_scalar("acc/val", val_acc, global_step=epoch)
-        # tbwritter.add_scalar("rec/val", val_recall, global_step=epoch)
-        # tbwritter.add_scalar("prec/val", val_precision, global_step=epoch)
-        # tbwritter.add_scalar("f1/val", val_f1, global_step=epoch)
-        # tbwritter.add_scalar("auc/val", val_auc, global_step=epoch)
+        tbwritter.add_scalar("acc/val", val_acc, global_step=epoch)
+        tbwritter.add_scalar("rec/val", val_recall, global_step=epoch)
+        tbwritter.add_scalar("prec/val", val_precision, global_step=epoch)
+        tbwritter.add_scalar("f1/val", val_f1, global_step=epoch)
+        tbwritter.add_scalar("auc/val", val_auc, global_step=epoch)
 
         # Update Variables
         # Min validation loss and save if validation loss decreases
