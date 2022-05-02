@@ -1,18 +1,23 @@
 # Imports
+from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
 import os
-import argparse
-from tqdm import tqdm
-import numpy as np
-from collections import OrderedDict
+import sys
 
-# Sklearn Import
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+# Append current working directory to PATH to export stuff outside this folder
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
+
+import argparse
+import numpy as np
+from tqdm import tqdm
+import datetime
+
 
 # PyTorch Imports
 import torch
 from torch.utils.data import DataLoader
-import torchvision
+import torchvision.transforms as transforms
+from torchvision.models import densenet121
 
 
 # Fix Random Seeds
@@ -20,77 +25,43 @@ random_seed = 42
 torch.manual_seed(random_seed)
 np.random.seed(random_seed)
 
-
-# Project Imports
-from model_utilities_baseline import VGG16, DenseNet121, ResNet50
-from model_utilities_se import SEResNet50, SEVGG16, SEDenseNet121
-from model_utilities_cbam import CBAMResNet50, CBAMVGG16, CBAMDenseNet121
-from data_utilities import aptos_map_images_and_labels, cbis_map_images_and_labels, mimic_map_images_and_labels, ph2_map_images_and_labels, isic_get_data_paths, APTOSDataset, CBISDataset, MIMICXRDataset, PH2Dataset, ISIC2020Dataset
-from transformers import ViTFeatureExtractor, ViTForImageClassification, DeiTFeatureExtractor, DeiTForImageClassification
-from transformer_explainability_utils.ViT_LRP import deit_base_patch16_224 as DeiT_Base
-from transformer_explainability_utils.ViT_LRP import deit_tiny_patch16_224 as DeiT_Tiny 
-
-
-
+SEMANTIC_TYPES = ["Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function",
+                  "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept", "Miscellaneous Concepts"]
 # Command Line Interface
 # Create the parser
 parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, required=True, help="Directory of the data set.")
-
-# Data set
-parser.add_argument('--dataset', type=str, required=True, choices=["CBISDDSM", "ISIC2020", "MIMICCXR", "APTOS", "PH2"], help="Data set: CBISDDSM, ISIC2020, MIMICCXR, APTOS, PH2")
-
-# Data split
-parser.add_argument('--split', type=str, required=True, choices=["Train", "Validation", "Test"], help="Data split: Train, Validation or Test")
-
-# Model
-parser.add_argument('--model', type=str, required=True, choices=["DenseNet121", "ResNet50", "VGG16", "SEDenseNet121", "SEResNet50", "SEVGG16", "CBAMDenseNet121", "CBAMResNet50", "CBAMVGG16", "ViT", "DeiT", "DeiT-B-LRP", "DeiT-T-LRP"], help='Model Name: DenseNet121, ResNet50, VGG16, SEDenseNet121, SEResNet50, SEVGG16, CBAMDenseNet121, CBAMResNet50, CBAMVGG16, ViT, DeiT, DeiT-B-LRP, DeiT-T-LRP.')
-
-# Low Data Regimen
-parser.add_argument('--low_data_regimen', action="store_true", help="Activate the low data regimen training.")
-parser.add_argument('--perc_train', type=float, default=1, help="Percentage of training data to be used during training.")
-
-# Model checkpoint
-parser.add_argument("--modelckpt", type=str, required=True, help="Directory where model is stored")
+parser.add_argument('--data_dir', type=str, required=True,
+                    help="Directory of the data set.")
 
 # Batch size
-parser.add_argument('--batchsize', type=int, default=4, help="Batch-size for training and validation")
+parser.add_argument('--batchsize', type=int, default=4,
+                    help="Batch-size for training and validation")
 
 # Image size
-parser.add_argument('--imgsize', type=int, default=224, help="Size of the image after transforms")
-
-# Resize
-parser.add_argument('--resize', type=str, choices=["direct_resize", "resizeshortest_randomcrop"], default="direct_resize", help="Resize data transformation")
+parser.add_argument('--imgsize', type=int, default=224,
+                    help="Size of the image after transforms")
 
 # Number of workers
-parser.add_argument("--num_workers", type=int, default=0, help="Number of workers for dataloader")
+parser.add_argument("--num_workers", type=int, default=0,
+                    help="Number of workers for dataloader")
 
 # GPU ID
-parser.add_argument("--gpu_id", type=int, default=0, help="The index of the GPU")
-
-# Number of layers (ViT)
-parser.add_argument("--nr_layers", type=int, default=12, help="Number of hidden layers (only for ViT)")
+parser.add_argument("--gpu_id", type=int, default=0,
+                    help="The index of the GPU")
 
 
 # Parse the arguments
 args = parser.parse_args()
 
-
-
 # Data directory
 data_dir = args.data_dir
 
-# Dataset
-dataset = args.dataset
 
-# Data split
-data_split = args.split
-
-# Model Directory
-modelckpt = args.modelckpt
+# Results Directory
+outdir = args.outdir
 
 # Number of workers (threads)
 workers = args.num_workers
@@ -100,115 +71,6 @@ BATCH_SIZE = args.batchsize
 
 # Image size (after transforms)
 IMG_SIZE = args.imgsize
-
-# Number of layers of the Visual Transformer
-nr_layers = args.nr_layers
-
-# Resize (data transforms)
-resize_opt = args.resize
-
-# Low data regimen
-low_data_regimen = args.low_data_regimen
-perc_train = args.perc_train
-
-# Weights directory
-weights_dir = os.path.join(modelckpt, "weights")
-
-
-
-# CBISDDSM
-if dataset == "CBISDDSM":
-    # Directories
-    # data_dir = "/ctm-hdd-pool01/tgoncalv/datasets/CBISPreprocDataset"
-    # data_dir = "/BARRACUDA8T/DATASETS/CBIS_DDSM/"
-
-    # Data splits
-    if data_split == "Train":
-        eval_dir = os.path.join(data_dir, "train")
-    
-    elif data_split == "Validation":
-        eval_dir = os.path.join(data_dir, "val")
-    
-    elif data_split == "Test":
-        eval_dir = os.path.join(data_dir, "test")
- 
-
-    imgs_labels, labels_dict, nr_classes = cbis_map_images_and_labels(dir=eval_dir)
-
-
-# MIMICXR
-elif dataset == "MIMICCXR":
-    # Directories
-    # data_dir = "/ctm-hdd-pool01/wjsilva19/MedIA"
-    # data_dir = "/BARRACUDA8T/DATASETS/MIMIC_CXR_Pleural_Subset/"
-
-    # Data splits
-    if data_split == "Train":
-        eval_dir = os.path.join(data_dir, "Train_images_AP_resized")
-    
-    elif data_split == "Validation":
-        eval_dir = os.path.join(data_dir, "Val_images_AP_resized")
-    
-    elif data_split == "Test":
-        eval_dir = os.path.join(data_dir, "Test_images_AP_resized")
-
-
-    _, _, nr_classes = mimic_map_images_and_labels(base_data_path=eval_dir, pickle_path=os.path.join(eval_dir, "Annotations.pickle"))
-
-
-# APTOS
-elif dataset == "APTOS":
-    _, _, nr_classes = aptos_map_images_and_labels(base_path=data_dir)
-    # data_dir = "/BARRACUDA8T/DATASETS/APTOS2019/"
-
-
-# ISIC2020
-elif dataset == "ISIC2020":
-    # Directories
-    # data_dir = "/ctm-hdd-pool01/tgoncalv/datasets/ISIC2020/jpeg/train_resized"
-    # data_dir = "/BARRACUDA8T/DATASETS/ISIC2020/train_resized"
-    # csv_fpath = "/ctm-hdd-pool01/tgoncalv/datasets/ISIC2020/train.csv"
-    # csv_fpath = "/BARRACUDA8T/DATASETS/ISIC2020/train.csv"
-
-    # Build data directories and get number of classes
-    data_dir, csv_fpath, nr_classes = isic_get_data_paths(base_data_path=data_dir, resized=True)
-
-
-# PH2
-elif dataset == "PH2":
-    # Directories
-    # data_dir = "/ctm-hdd-pool01/tgoncalv/datasets/PH2Dataset"
-
-    # Data split
-    # Get all the images, labels, and number of classes of PH2 Dataset
-    ph2_imgs, ph2_labels, nr_classes = ph2_map_images_and_labels(data_dir)
-
-    # Remove class 1
-    ph2_imgs = ph2_imgs[ph2_labels!=1]
-    ph2_labels = ph2_labels[ph2_labels!=1]
-
-
-    # Split into train, validation and test (60%, 20%, 20%)
-    # Train and Test
-    ph2_imgs_train, ph2_imgs_test, ph2_labels_train, ph2_labels_test = train_test_split(ph2_imgs, ph2_labels, test_size=0.20, random_state=random_seed)
-    # Train and Validation
-    ph2_imgs_train, ph2_imgs_val, ph2_labels_train, ph2_labels_val = train_test_split(ph2_imgs_train, ph2_labels_train, test_size=0.25, random_state=random_seed)
-
-
-    # Data splits
-    if data_split == "Train":
-        ph2_imgs_eval = ph2_imgs_train.copy()
-        ph2_labels_eval = ph2_labels_train.copy()
-    
-    elif data_split == "Validation":
-        ph2_imgs_eval = ph2_imgs_val.copy()
-        ph2_labels_eval = ph2_labels_val.copy()
-
-    elif data_split == "Test":
-        ph2_imgs_eval = ph2_imgs_test.copy()
-        ph2_labels_eval = ph2_labels_test.copy()
-
-
 
 # Choose GPU
 DEVICE = f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu"
@@ -225,226 +87,233 @@ img_nr_channels = 3
 img_height = IMG_SIZE
 img_width = IMG_SIZE
 
+# Get data paths
+sem_concepts_path = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
-# Get the right model from the CLI
-model = args.model
-model_name = model.lower()
-feature_extractor = None
+train_datapath = os.path.join(data_dir, "dataset_resized", "train_resized")
+train_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
 
+valid_datapath = os.path.join(data_dir, "dataset_resized", "valid_resized")
+valid_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
-# VGG-16
-if model == "VGG16":
-    model = VGG16(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
+# Get nr_classes
+_, _, sem_type_concepts_dict = get_semantic_concept_dataset(
+    concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
-# DenseNet-121
-elif model == "DenseNet121":
-    model = DenseNet121(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# ResNet50
-elif model == "ResNet50":
-    model = ResNet50(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# SEResNet50
-elif model == "SEResNet50":
-    model = SEResNet50(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# SEVGG16
-elif model == "SEVGG16":
-    model = SEVGG16(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# SEDenseNet121
-elif model == "SEDenseNet121":
-    model = SEDenseNet121(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# CBAMResNet50
-elif model == "CBAMResNet50":
-    model = CBAMResNet50(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# CBAMVGG16
-elif model == "CBAMVGG16":
-    model = CBAMVGG16(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# CBAMDenseNet121
-elif model == "CBAMDenseNet121":
-    model = CBAMDenseNet121(channels=img_nr_channels, height=img_height, width=img_width, nr_classes=nr_classes)
-
-# ViT
-elif model == "ViT":
-    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', num_labels=nr_classes, ignore_mismatched_sizes=True, num_hidden_layers=nr_layers, image_size=IMG_SIZE)
-    feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224')
-
-# DeiT
-elif model == "DeiT":
-    model = DeiTForImageClassification.from_pretrained('facebook/deit-tiny-distilled-patch16-224', num_labels=nr_classes, ignore_mismatched_sizes=True, num_hidden_layers=nr_layers, image_size=IMG_SIZE)
-    feature_extractor = DeiTFeatureExtractor.from_pretrained('facebook/deit-tiny-distilled-patch16-224')
-
-# DeiT-Base (compatible with LRP)
-elif model == "DeiT-B-LRP":
-    model = DeiT_Base(pretrained=True, num_classes=nr_classes, input_size=(3, IMG_SIZE, IMG_SIZE), url="https://dl.fbaipublicfiles.com/deit/deit_base_patch16_224-b5f2ef4d.pth")
-    feature_extractor = DeiTFeatureExtractor.from_pretrained("facebook/deit-base-patch16-224")
-
-# DeiT-Tiny (compatible with LRP)
-elif model == "DeiT-T-LRP":
-    model = DeiT_Tiny(pretrained=True, num_classes=nr_classes, input_size=(3, IMG_SIZE, IMG_SIZE), url="https://dl.fbaipublicfiles.com/deit/deit_tiny_patch16_224-a1311bcf.pth")
-    feature_extractor = DeiTFeatureExtractor.from_pretrained("facebook/deit-tiny-patch16-224")
+NR_CLASSES = len(sem_type_concepts_dict)
+print(f"SEMANTIC TYPE: {semantic_type}")
+print(f"NR CLASSES {NR_CLASSES}")
 
 
-# Load model weights
-model_file = os.path.join(weights_dir, f"{model_name}_{dataset.lower()}_best.pt")
-checkpoint = torch.load(model_file, map_location=DEVICE)
+model = densenet121(progress=True, pretrained=True)
+model.classifier = torch.nn.Linear(1024, NR_CLASSES)
 
-# We need to add an exception to prevent some errors from the attention mechanisms that were already trained
-# Case without any error
-try:
-    model.load_state_dict(checkpoint['model_state_dict'], strict=True)
-    print("Loaded model from " + model_file)
-
-# Case related to CBAM blocks
-except:
-
-    # Debug print
-    print("Fixing key values with old trained CBAM models")
-
-    # Get missing keys
-    missing, unexpected = model.load_state_dict(checkpoint['model_state_dict'], strict=False) 
-
-    if len(missing) == len(unexpected):
-        
-        # Method to remap the new state_dict keys (https://gist.github.com/the-bass/0bf8aaa302f9ba0d26798b11e4dd73e3)
-        state_dict = checkpoint['model_state_dict']
-        
-        # New state dict
-        new_state_dict = OrderedDict()
-
-        for key, value in state_dict.items():
-            if key in unexpected:
-                new_state_dict[missing[unexpected.index(key)]] = value
-            else:
-                new_state_dict[key] = value
-
-
-    # Now we try to load the new state_dict
-    model.load_state_dict(new_state_dict, strict=True)
-    print("Success!")
-
-
-
-# Move model to device
+# Put model into DEVICE (CPU or GPU)
 model = model.to(DEVICE)
 
-# Put model in evaluation mode
-model.eval()
 
+# Load data
+# Train
+# Transforms
+train_transforms = transforms.Compose([
+    transforms.RandomResizedCrop(IMG_SIZE),
+    transforms.RandomAffine(degrees=(-10, 10), translate=(
+        0.05, 0.1), scale=(0.95, 1.05), shear=0, fill=(0, 0, 0)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
 
 # Validation
 # Transforms
-eval_transforms = torchvision.transforms.Compose([
-    torchvision.transforms.Resize(IMG_SIZE if resize_opt == 'resizeshortest_randomcrop' else (IMG_SIZE, IMG_SIZE)),
-    torchvision.transforms.RandomCrop(IMG_SIZE if resize_opt == 'resizeshortest_randomcrop' else (IMG_SIZE, IMG_SIZE)),
-    torchvision.transforms.ToTensor(),
-    torchvision.transforms.Normalize(mean=feature_extractor.image_mean if feature_extractor else MEAN, std=feature_extractor.image_std if feature_extractor else STD)
+valid_transforms = transforms.Compose([
+    transforms.CenterCrop(IMG_SIZE),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
 ])
 
 # Datasets
-# CBISDDSM
-if dataset == "CBISDDSM":
-    eval_set = CBISDataset(base_data_path=eval_dir, transform=eval_transforms)
+train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path,
+                               subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms)
+valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path,
+                               subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
 
 
-# MIMCCXR
-elif dataset == "MIMICCXR":
-    if data_split == "Train":
-        eval_set = MIMICXRDataset(base_data_path=eval_dir, pickle_path=os.path.join(eval_dir, "Annotations.pickle"), resized=None, low_data_regimen=low_data_regimen, perc_train=perc_train, transform=eval_transforms)
-    else:
-        eval_set = MIMICXRDataset(base_data_path=eval_dir, pickle_path=os.path.join(eval_dir, "Annotations.pickle"), transform=eval_transforms)
-        # print(f"Evaluation set size: {len(eval_set)}")
-
-# APTOS
-elif dataset == "APTOS":
-    eval_set = APTOSDataset(base_data_path=data_dir, split=data_split, resized=True, low_data_regimen=low_data_regimen, perc_train=perc_train, transform=eval_transforms)
-    # print(f"Evaluation set size: {len(eval_set)}")
-
-# ISIC2020
-elif dataset == "ISIC2020":
-    eval_set = ISIC2020Dataset(base_data_path=data_dir, csv_path=csv_fpath, split=data_split, random_seed=random_seed, resized=None, low_data_regimen=low_data_regimen, perc_train=perc_train, transform=eval_transforms)
-    # print(f"Evaluation set size: {len(eval_set)}")
+# Class weights for loss
+if args.classweights:
+    concept_csv = os.path.join(
+        data_dir, "csv", "concepts", "top100", "new_top100_concepts.csv")
+    cw = compute_pos_weights(dataset_csv=train_csvpath,
+                             concept_csv=concept_csv)
+    cw = torch.from_numpy(cw).to(DEVICE)
+    print(f"Using class weights {cw}")
+else:
+    cw = None
 
 
-# PH2
-elif dataset == "PH2":
-    eval_set = PH2Dataset(ph2_imgs=ph2_imgs_eval, ph2_labels=ph2_labels_eval, base_data_path=data_dir, transform=eval_transforms)
+# Hyper-parameters
+LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum", pos_weight=cw)
+VAL_LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum")
+OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
+
+# Resume training from given checkpoint
+if resume:
+    checkpoint = torch.load(ckpt)
+    model.load_state_dict(checkpoint['model_state_dict'], strict=True)
+    OPTIMISER.load_state_dict(checkpoint['optimizer_state_dict'])
+    init_epoch = checkpoint['epoch'] + 1
+    print(f"Resuming from {ckpt} at epoch {init_epoch}")
+else:
+    init_epoch = 0
 
 
 # Dataloaders
-eval_loader = DataLoader(dataset=eval_set, batch_size=BATCH_SIZE, shuffle=False, pin_memory=True, num_workers=workers)
+train_loader = DataLoader(dataset=train_set, batch_size=BATCH_SIZE,
+                          shuffle=True, pin_memory=False, num_workers=workers)
+val_loader = DataLoader(dataset=valid_set, batch_size=BATCH_SIZE,
+                        shuffle=True, pin_memory=False, num_workers=workers)
 
 
-# Loss function
-LOSS = torch.nn.CrossEntropyLoss(reduction="sum")
+# Train model and save best weights on validation set
+# Initialise min_train and min_val loss trackers
+min_train_loss = np.inf
+min_val_loss = np.inf
 
+# Go through the number of Epochs
+for epoch in range(init_epoch, EPOCHS):
+    # Epoch
+    print(f"Epoch: {epoch+1}")
 
-# Test model
-print(f"Testing Step | Data Set: {dataset}")
+    # Training Loop
+    print("Training Phase")
 
+    # Running train loss
+    run_train_loss = torch.tensor(0, dtype=torch.float64, device=DEVICE)
 
-# Initialise lists to compute scores
-y_eval_true = np.empty((0), int)
-y_eval_pred = torch.empty(0, dtype=torch.int32, device=DEVICE)
-y_eval_scores = torch.empty(0, dtype=torch.float, device=DEVICE)
-
-# Running train loss
-run_eval_loss = 0.0
-
-
-# Deactivate gradients
-with torch.no_grad():
+    # Put model in training mode
+    model.train()
 
     # Iterate through dataloader
-    for images, labels in tqdm(eval_loader):
-        y_eval_true = np.append(y_eval_true, labels.numpy(), axis=0)
+    for images, labels in tqdm(train_loader):
 
-        # Move data data anda model to GPU (or not)
-        images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
+        # Move data and model to GPU (or not)
+        images, labels = images.to(DEVICE, non_blocking=True), labels.to(
+            DEVICE, non_blocking=True)
 
-        # Forward pass: compute predicted outputs by passing inputs to the model
-        if(isinstance(model, ViTForImageClassification) or isinstance(model, DeiTForImageClassification)):
-            out = model(pixel_values=images)
-            logits = out.logits
-        else:
-            logits = model(images)
-        
+        # Find the loss and update the model parameters accordingly
+        # Clear the gradients of all optimized variables
+        OPTIMISER.zero_grad(set_to_none=True)
+
+        # Get logits
+        logits = model(images)
+
         # Compute the batch loss
-        # Using CrossEntropy w/ Softmax
         loss = LOSS(logits, labels)
-        
+
         # Update batch losses
-        run_eval_loss += loss
+        run_train_loss += loss.item()
 
+        # Backward pass: compute gradient of the loss with respect to model parameters
+        loss.backward()
 
-        # Using Softmax Activation
-        # Apply Softmax on Logits and get the argmax to get the predicted labels
-        s_logits = torch.nn.Softmax(dim=1)(logits)
-        y_eval_scores = torch.cat((y_eval_scores, s_logits))
-        s_logits = torch.argmax(s_logits, dim=1)
-        y_eval_pred = torch.cat((y_eval_pred, s_logits))
+        # Perform a single optimization step (parameter update)
+        OPTIMISER.step()
 
-    
-
-    # Compute Average Validation Loss
-    avg_eval_loss = run_eval_loss/len(eval_loader.dataset)
-
-    # Compute Validation Accuracy
-    y_eval_pred = y_eval_pred.cpu().detach().numpy()
-    y_eval_scores = y_eval_scores.cpu().detach().numpy()
-    eval_acc = accuracy_score(y_true=y_eval_true, y_pred=y_eval_pred)
-    eval_f1 = f1_score(y_true=y_eval_true, y_pred=y_eval_pred, average='micro')
-    eval_auc = roc_auc_score(y_true=y_eval_true, y_score=y_eval_scores[:, 1], average='micro')
+    # Compute Average Train Loss
+    avg_train_loss = run_train_loss / len(train_loader.dataset)
 
     # Print Statistics
-    best_epoch = checkpoint["epoch"]
-    print(f"Model Name: {model_name}\t{data_split} Epoch: {best_epoch} Loss: {avg_eval_loss} Accuracy: {eval_acc} F1-score: {eval_f1} ROC AUC: {eval_auc}")
-    
+    print(f"Train Loss: {avg_train_loss}")
+
+    # Plot to Tensorboard
+    tbwritter.add_scalar("loss/train", avg_train_loss, global_step=epoch)
+
+    # Update Variables
+    # Min Training Loss
+    if avg_train_loss < min_train_loss:
+        print(
+            f"Train loss decreased from {min_train_loss} to {avg_train_loss}.")
+        min_train_loss = avg_train_loss
+
+    # Validation Loop
+    print("Validation Phase")
+
+    # Running train loss
+    run_val_loss = 0.0
+
+    # Put model in evaluation mode
+    model.eval()
+
+    # Deactivate gradients
+    with torch.no_grad():
+
+        # Iterate through dataloader
+        for images, labels in tqdm(val_loader):
+
+            # Move data data anda model to GPU (or not)
+            images, labels = images.to(DEVICE, non_blocking=True), labels.to(
+                DEVICE, non_blocking=True)
+
+            # Forward pass: compute predicted outputs by passing inputs to the model
+            logits = model(images)
+
+            # Compute the batch loss
+            loss = VAL_LOSS(logits, labels)
+
+            # Update batch losses
+            run_val_loss += loss.item()
+
+        # Compute Average Validation Loss
+        avg_val_loss = run_val_loss / len(val_loader.dataset)
+
+        # Print Statistics
+        print(f"Validation Loss: {avg_val_loss}")
+
+        # Plot to Tensorboard
+        tbwritter.add_scalar("loss/val", avg_val_loss, global_step=epoch)
+
+        # Update Variables
+        # Min validation loss and save if validation loss decreases
+        if avg_val_loss < min_val_loss:
+            print(
+                f"Validation loss decreased from {min_val_loss} to {avg_val_loss}.")
+            min_val_loss = avg_val_loss
+
+            print("Saving best model on validation...")
+
+            # Save checkpoint
+            model_path = os.path.join(
+                weights_dir, f"model_best.pt")
+
+            save_dict = {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': OPTIMISER.state_dict(),
+                'loss': avg_train_loss,
+            }
+            torch.save(save_dict, model_path)
+
+            print(f"Successfully saved at: {model_path}")
+
+        # Checkpoint loop/condition
+        if epoch % save_freq == 0 and epoch > 0:
+
+            # Save checkpoint
+            model_path = os.path.join(
+                weights_dir, f"model_{epoch:04}.pt")
+
+            save_dict = {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': OPTIMISER.state_dict(),
+                'loss': avg_train_loss,
+            }
+            torch.save(save_dict, model_path)
 
 
 # Finish statement
