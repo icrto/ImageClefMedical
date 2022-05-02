@@ -155,7 +155,11 @@ class ImgClefConcDataset(Dataset):
         image = PIL.Image.open(os.path.join(self.img_datapath, f"{img_name}.jpg")).convert("RGB")
 
         # Get labels
-        label = self.img_labels[idx]
+        if len(self.img_labels) > 0:
+            label = self.img_labels[idx]
+        
+        else:
+            label = list()
 
         # Apply transformation
         if self.transform:

@@ -233,7 +233,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
             eval_images.append(img_ids[0])
             eval_concepts.append(predicted_concepts[:-1])
 
-            if len(labels) > 0:
+            if len(labels[0]) > 0:
                 zero_array = np.zeros_like(labels[0].cpu().detach().numpy())
                 for idx in indices:
                     zero_array[idx] = 1
