@@ -165,7 +165,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
 
 
     # Weights directory
-    weights_dir = os.path.join(modelckpt, "weights")
+    weights_dir = os.path.join("results", "semantic_baseline", "model_checkpoints", modelckpt, "weights")
     model_file = os.path.join(weights_dir, "model_best.pt")
 
     # Load model weights
