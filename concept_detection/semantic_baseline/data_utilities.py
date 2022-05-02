@@ -160,6 +160,7 @@ class ImgClefConcDataset(Dataset):
         
         else:
             label = list()
+            label = torch.Tensor(label)
 
         # Apply transformation
         if self.transform:
