@@ -1,0 +1,91 @@
+Using device: cpu
+Loading the semantic type <Body Part, Organ, or Organ Component> from 2022-05-01_01-29-42
+NR CLASSES 27
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_01-29-42/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.6919
+Hamming loss: 0.0211
+Recall: 0.6967
+Precision: 0.6981
+F1 Measure: 0.6967
+Finished.
+Loading the semantic type <Spatial Concept> from 2022-05-01_01-55-28
+NR CLASSES 19
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_01-55-28/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.7336
+Hamming loss: 0.0299
+Recall: 0.7338
+Precision: 0.7338
+F1 Measure: 0.7338
+Finished.
+Loading the semantic type <Finding> from 2022-05-01_02-21-17
+NR CLASSES 8
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_02-21-17/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.8997
+Hamming loss: 0.0255
+Recall: 0.8997
+Precision: 0.8997
+F1 Measure: 0.8997
+Finished.
+Loading the semantic type <Pathologic Function> from 2022-05-01_02-47-06
+NR CLASSES 8
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_02-47-06/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.9420
+Hamming loss: 0.0147
+Recall: 0.9420
+Precision: 0.9420
+F1 Measure: 0.9420
+Finished.
+Loading the semantic type <Qualitative Concept> from 2022-05-01_03-12-56
+NR CLASSES 8
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_03-12-56/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.9047
+Hamming loss: 0.0246
+Recall: 0.9048
+Precision: 0.9048
+F1 Measure: 0.9048
+Finished.
+Loading the semantic type <Diagnostic Procedure> from 2022-05-01_03-38-44
+NR CLASSES 7
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_03-38-44/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.9183
+Hamming loss: 0.0195
+Recall: 0.9208
+Precision: 0.9216
+F1 Measure: 0.9209
+Finished.
+Loading the semantic type <Body Location or Region> from 2022-05-01_04-04-33
+NR CLASSES 6
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_04-04-33/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.7785
+Hamming loss: 0.0738
+Recall: 0.7792
+Precision: 0.7792
+F1 Measure: 0.7791
+Finished.
+Loading the semantic type <Functional Concept> from 2022-05-01_04-30-22
+NR CLASSES 5
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_04-30-22/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.9589
+Hamming loss: 0.0164
+Recall: 0.9589
+Precision: 0.9589
+F1 Measure: 0.9589
+Finished.
+Loading the semantic type <Miscellaneous Concepts> from 2022-05-01_04-56-11
+NR CLASSES 21
+Loaded model from results/semantic_baseline/model_checkpoints/2022-05-01_04-56-11/weights/model_best.pt
+/////////// Evaluation Report ////////////
+Exact Match Ratio: 0.8162
+Hamming loss: 0.0182
+Recall: 0.8177
+Precision: 0.8178
+F1 Measure: 0.8176
+Finished.
