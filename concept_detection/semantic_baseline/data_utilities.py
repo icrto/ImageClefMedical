@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 
 # Function: Create subset according to semantic types
-def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type):
+def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type, **kwargs):
 
     assert semantic_type in ("Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure",
                              "Body Location or Region", "Functional Concept", "Miscellaneous Concepts"), f"{semantic_type} not valid. Provide a valida semantic type"
@@ -35,17 +35,19 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
             sem_type_concepts.append(row["concept"])
 
     # Clean this list from duplicated values
-    sem_type_concepts, _ = np.unique(
-        ar=np.array(sem_type_concepts), return_counts=True)
+    sem_type_concepts, _ = np.unique(ar=np.array(sem_type_concepts), return_counts=True)
     sem_type_concepts = list(sem_type_concepts)
     sem_type_concepts.sort()
     sem_type_concepts_dict = dict()
+    inv_sem_type_concepts_dict = dict()
 
     # Create a dict for concept-mapping into classes
     for index, c in enumerate(sem_type_concepts):
         sem_type_concepts_dict[c] = index
+        sem_type_concepts_dict[index] = c
 
     sem_type_concepts_dict["None"] = index + 1
+    inv_sem_type_concepts_dict[index+1] = "None"
 
     # print(sem_type_concepts_dict)
 
@@ -59,46 +61,60 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
         img_ids.append(row["ID"])
 
         # Get cuis
-        cuis = row["cuis"]
-        cuis = cuis.split(';')
-
-        # Create temporary concepts list to clean subset
-        tmp_concepts = list()
-
-        # Split the cuis
-        for c in cuis:
-            tmp_concepts.append(c if c in sem_type_concepts else "None")
-
-        tmp_concepts_unique, _ = np.unique(
-            ar=np.array(tmp_concepts), return_counts=True)
-        tmp_concepts_unique = list(tmp_concepts_unique)
-
-        if len(tmp_concepts_unique) > 0:
-            label = [sem_type_concepts_dict.get(
-                i) for i in tmp_concepts_unique]
-            img_labels.append(label)
-
+        if kwargs['subset'].lower() == "test":
+            img_labels = list()
+        
         else:
-            label = [sem_type_concepts_dict.get("None")]
-            img_labels.append(label)
+            cuis = row["cuis"]
+            cuis = cuis.split(';')
 
-    # In multilabel cases, remove the "None" if exists
-    for index, label in enumerate(img_labels):
-        if len(label) > 1:
-            if sem_type_concepts_dict["None"] in label:
-                label.remove(sem_type_concepts_dict["None"])
-                img_labels[index] = label.copy()
+            # Create temporary concepts list to clean subset
+            tmp_concepts = list()
 
-    return img_ids, img_labels, sem_type_concepts_dict
+            # Split the cuis
+            for c in cuis:
+                tmp_concepts.append(c if c in sem_type_concepts else "None")
+
+            tmp_concepts_unique, _ = np.unique(ar=np.array(tmp_concepts), return_counts=True)
+            tmp_concepts_unique = list(tmp_concepts_unique)
+
+            if len(tmp_concepts_unique) > 0:
+                label = [sem_type_concepts_dict.get(i) for i in tmp_concepts_unique]
+                img_labels.append(label)
+
+            else:
+                label = [sem_type_concepts_dict.get("None")]
+                img_labels.append(label)
+
+
+    # Test Set
+    if kwargs['subset'].lower() == "test":
+        img_labels = list()
+    
+    else:
+        # In multilabel cases, remove the "None" if exists
+        for index, label in enumerate(img_labels):
+            if len(label) > 1:
+                if sem_type_concepts_dict["None"] in label:
+                    label.remove(sem_type_concepts_dict["None"])
+                    img_labels[index] = label.copy()
+
+
+    return img_ids, img_labels, sem_type_concepts_dict, inv_sem_type_concepts_dict
+
 
 
 # Class: ImgClefConc Dataset
 class ImgClefConcDataset(Dataset):
-    def __init__(self, img_datapath, concepts_sem_csv, subset_sem_csv, semantic_type, transform=None):
+    def __init__(self, img_datapath, concepts_sem_csv, subset_sem_csv, semantic_type, transform=None, subset=None):
 
         # Get the desired dataset
-        self.img_ids, img_labels, self.sem_type_concepts_dict = get_semantic_concept_dataset(
-            concepts_sem_csv=concepts_sem_csv, subset_sem_csv=subset_sem_csv, semantic_type=semantic_type)
+        if subset:
+            self.img_ids, img_labels, self.sem_type_concepts_dict, self.inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=concepts_sem_csv, subset_sem_csv=subset_sem_csv, semantic_type=semantic_type, subset=subset)
+
+        else:
+            self.img_ids, img_labels, self.sem_type_concepts_dict, self.inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=concepts_sem_csv, subset_sem_csv=subset_sem_csv, semantic_type=semantic_type)
+
         self.img_datapath = img_datapath
         self.transform = transform
 
@@ -128,8 +144,7 @@ class ImgClefConcDataset(Dataset):
 
         # Get images
         img_name = self.img_ids[idx]
-        image = PIL.Image.open(os.path.join(
-            self.img_datapath, f"{img_name}.jpg")).convert("RGB")
+        image = PIL.Image.open(os.path.join(self.img_datapath, f"{img_name}.jpg")).convert("RGB")
 
         # Get labels
         label = self.img_labels[idx]
@@ -138,7 +153,8 @@ class ImgClefConcDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image, label
+        return image, label, img_name
+
 
 
 # Run this script to test code

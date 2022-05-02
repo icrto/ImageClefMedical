@@ -1,17 +1,14 @@
 # Imports
-from tabnanny import verbose
-from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
 import os
 import sys
-
-# Append current working directory to PATH to export stuff outside this folder
-if os.getcwd() not in sys.path:
-    sys.path.append(os.getcwd())
-
 import argparse
 import numpy as np
 from tqdm import tqdm
 import datetime
+
+# Append current working directory to PATH to export stuff outside this folder
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
 
 # PyTorch Imports
 import torch
@@ -19,6 +16,9 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.models import densenet121, resnet18
 from torch.utils.tensorboard import SummaryWriter
+
+# Project Imports
+from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
 from aux_utils.aux_functions import compute_pos_weights
 
 # Fix Random Seeds
@@ -281,7 +281,7 @@ for epoch in range(init_epoch, EPOCHS):
     model.train()
 
     # Iterate through dataloader
-    for images, labels in tqdm(train_loader):
+    for images, labels, _ in tqdm(train_loader):
 
         # Move data and model to GPU (or not)
         images, labels = images.to(DEVICE, non_blocking=True), labels.to(
@@ -339,11 +339,10 @@ for epoch in range(init_epoch, EPOCHS):
     with torch.no_grad():
 
         # Iterate through dataloader
-        for images, labels in tqdm(val_loader):
+        for images, labels, _ in tqdm(val_loader):
 
             # Move data data anda model to GPU (or not)
-            images, labels = images.to(DEVICE, non_blocking=True), labels.to(
-                DEVICE, non_blocking=True)
+            images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
 
             # Forward pass: compute predicted outputs by passing inputs to the model
             logits = model(images)

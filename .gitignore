@@ -130,6 +130,7 @@ dmypy.json
 
 # Files stuff
 data/dataset_resized/
+results/semantic_baseline/model_checkpoints/
 *.zip
 *.png 
 *.npy
