@@ -263,7 +263,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
 
-        evaluation_df.to_csv(os.path.join("semantic_baseline", "validation", f"{semantic_type}.csv"), sep="\t", index=False)
+        evaluation_df.to_csv(os.path.join(save_dir, f"{semantic_type}.csv"), sep="\t", index=False)
     
     else:
         save_dir = os.path.join("results", "semantic_baseline", "test")
