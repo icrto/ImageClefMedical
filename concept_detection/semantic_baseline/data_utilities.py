@@ -122,16 +122,22 @@ class ImgClefConcDataset(Dataset):
         self.transform = transform
 
         # Since we are dealing with a multilabel case
-        matrix_labels = np.zeros((len(self.img_ids), len(self.sem_type_concepts_dict)))
-        for r in range(len(self.img_ids)):
-            label = img_labels[r]
+        if len(img_labels) > 0:
+            matrix_labels = np.zeros((len(self.img_ids), len(self.sem_type_concepts_dict)))
+            for r in range(len(self.img_ids)):
+                label = img_labels[r]
 
-            for c in label:
-                matrix_labels[r, c] = 1
+                for c in label:
+                    matrix_labels[r, c] = 1
 
-        self.img_labels = matrix_labels.copy()
+            self.img_labels = matrix_labels.copy()
+        
+        else:
+            self.img_labels = img_labels
+
 
         return
+
 
     # Method: __len__
 
