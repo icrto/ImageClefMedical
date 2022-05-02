@@ -21,7 +21,7 @@ import sklearn.metrics
 
 # Project Imports
 from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
-from aux_utils.aux_functions import compute_pos_weights
+
 
 # Fix Random Seeds
 random_seed = 42
@@ -202,16 +202,6 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
     eval_loader = DataLoader(dataset=eval_set, batch_size=BATCH_SIZE, shuffle=False, pin_memory=False, num_workers=workers)
 
 
-    # Class weights for loss
-    if args.classweights:
-        concept_csv = os.path.join(data_dir, "csv", "concepts", "top100", "new_top100_concepts.csv")
-        cw = compute_pos_weights(dataset_csv=train_csvpath, concept_csv=concept_csv)
-        cw = torch.from_numpy(cw).to(DEVICE)
-        print(f"Using class weights {cw}")
-    else:
-        cw = None
-
-
 
     # Create lists to append batch results
     y_true = []
@@ -271,10 +261,19 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
         print(f"Recall: {sklearn.metrics.precision_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
         print(f"Precision: {sklearn.metrics.recall_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
         print(f"F1 Measure: {sklearn.metrics.f1_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
+        
+        save_dir = os.path.join("results", "semantic_baseline", "validation")
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+
         evaluation_df.to_csv(os.path.join("semantic_baseline", "validation", f"{semantic_type}.csv"), sep="\t", index=False)
     
     else:
-        evaluation_df.to_csv(os.path.join("semantic_baseline", "test", f"{semantic_type}.csv"), sep="|", index=False, header=False)
+        save_dir = os.path.join("results", "semantic_baseline", "test")
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        
+        evaluation_df.to_csv(os.path.join(save_dir, f"{semantic_type}.csv"), sep="|", index=False, header=False)
 
 
 
