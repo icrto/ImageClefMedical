@@ -97,9 +97,6 @@ subset = args.subset
 # Model
 model_name = args.model
 
-# Results Directory
-outdir = args.outdir
-
 # Number of workers (threads)
 workers = args.num_workers
 
