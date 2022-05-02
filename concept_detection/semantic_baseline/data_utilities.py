@@ -15,6 +15,7 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     assert semantic_type in ("Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure",
                              "Body Location or Region", "Functional Concept", "Miscellaneous Concepts"), f"{semantic_type} not valid. Provide a valida semantic type"
 
+    # print(kwargs)
     # Load the .CSV concepts
     concepts_sem = pd.read_csv(concepts_sem_csv, sep="\t")
     subset_sem = pd.read_csv(subset_sem_csv, sep="\t")
@@ -44,7 +45,7 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     # Create a dict for concept-mapping into classes
     for index, c in enumerate(sem_type_concepts):
         sem_type_concepts_dict[c] = index
-        sem_type_concepts_dict[index] = c
+        inv_sem_type_concepts_dict[index] = c
 
     sem_type_concepts_dict["None"] = index + 1
     inv_sem_type_concepts_dict[index+1] = "None"
@@ -61,8 +62,9 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
         img_ids.append(row["ID"])
 
         # Get cuis
-        if kwargs['subset'].lower() == "test":
-            img_labels = list()
+        if "subset" in kwargs.keys():
+            if kwargs['subset'].lower() == "test":
+                img_labels = list()
         
         else:
             cuis = row["cuis"]
@@ -88,8 +90,9 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
 
 
     # Test Set
-    if kwargs['subset'].lower() == "test":
-        img_labels = list()
+    if "subset" in kwargs.keys():
+        if kwargs['subset'].lower() == "test":
+            img_labels = list()
     
     else:
         # In multilabel cases, remove the "None" if exists
@@ -119,8 +122,7 @@ class ImgClefConcDataset(Dataset):
         self.transform = transform
 
         # Since we are dealing with a multilabel case
-        matrix_labels = np.zeros(
-            (len(self.img_ids), len(self.sem_type_concepts_dict)))
+        matrix_labels = np.zeros((len(self.img_ids), len(self.sem_type_concepts_dict)))
         for r in range(len(self.img_ids)):
             label = img_labels[r]
 
@@ -166,16 +168,13 @@ if __name__ == "__main__":
         data_path, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
     train_data = os.path.join(data_path, "dataset_resized", "train_resized")
-    train_csv = os.path.join(data_path, "csv", "concepts",
-                             "top100", "new_train_subset_top100_sem.csv")
+    train_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
 
     valid_data = os.path.join(data_path, "dataset_resized", "valid_resized")
-    valid_csv = os.path.join(data_path, "csv", "concepts",
-                             "top100", "new_val_subset_top100_sem.csv")
+    valid_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
     # Test
-    imgs_ids, imgs_labels, sem_type_concepts_dict = get_semantic_concept_dataset(
-        concepts_sem_csv=sem_concepts, subset_sem_csv=train_csv, semantic_type="Miscellaneous Concepts")
+    imgs_ids, imgs_labels, sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts, subset_sem_csv=train_csv, semantic_type="Miscellaneous Concepts")
 
     # print(imgs_ids)
     print(imgs_labels)

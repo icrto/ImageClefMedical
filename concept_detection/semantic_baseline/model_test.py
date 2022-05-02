@@ -148,7 +148,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
     _, _, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
     NR_CLASSES = len(sem_type_concepts_dict)
-    # print(f"NR CLASSES {NR_CLASSES}")
+    print(f"NR CLASSES {NR_CLASSES}")
 
 
     # Create the model object
@@ -233,7 +233,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
             eval_images.append(img_ids[0])
             eval_concepts.append(predicted_concepts[:-1])
 
-            if labels[0]:
+            if len(labels) > 0:
                 zero_array = np.zeros_like(labels[0].cpu().detach().numpy())
                 for idx in indices:
                     zero_array[idx] = 1

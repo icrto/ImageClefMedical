@@ -178,8 +178,7 @@ valid_csvpath = os.path.join(
     data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
 # Get nr_classes
-_, _, sem_type_concepts_dict = get_semantic_concept_dataset(
-    concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
+_, _, sem_type_concepts_dict, _ = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
 NR_CLASSES = len(sem_type_concepts_dict)
 print(f"SEMANTIC TYPE: {semantic_type}")
