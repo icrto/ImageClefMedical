@@ -53,17 +53,29 @@ for subset in [validation_path, test_path]:
         # print(df_values)
 
         # Create image list
-        if len(eval_images) == 0:
-            for _, value in enumerate(df_values):
-                eval_images.append(value[0])
-                eval_concepts.append(list())
+        for _, row in df.iterrows():
+            if subset == "validation":
+                if row["ID"] not in eval_images:
+                    eval_images.append(row["ID"])
+                    eval_concepts.append(list())
+            
+            else:
+                if row.iloc[0, 0] not in eval_images:
+                    eval_images.append(row.iloc[0, 0])
+                    eval_concepts.append(list())
+
         
         # print(eval_images)
 
         # Append concepts (if different from 'None')
-        for index, value in enumerate(df_values):
+        for index, row in df.iterrows():
             # print(value[1])
-            pred_concepts = str(value[1]).split(';')
+            if subset == "validation":
+                pred_concepts = str(row["cuis"]).split(';')
+            
+            else:
+                pred_concepts = str(row.iloc[0, 1]).split(';')
+            
             for c in pred_concepts:
                 if c not in ("None", "nan"):
                     eval_concepts[index].append(c)
