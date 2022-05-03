@@ -32,48 +32,62 @@ parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, required=True, help="Directory of the data set.")
+parser.add_argument('--data_dir', type=str, required=True,
+                    help="Directory of the data set.")
 
 # Model
-parser.add_argument('--model', type=str, choices=["DenseNet121", "ResNet18"], default="ResNet18", help="Backbone model to train: DenseNet121 or ResNet18.")
+parser.add_argument('--model', type=str, choices=["DenseNet121", "ResNet18"],
+                    default="ResNet18", help="Backbone model to train: DenseNet121 or ResNet18.")
 
 # Semantic type
 parser.add_argument('--semantic_type', type=str, required=True, choices=["Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept",
                     "Miscellaneous Concepts"], help='Semantic type:"Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept", "Miscellaneous Concepts".')
 
 # Batch size
-parser.add_argument('--batchsize', type=int, default=4, help="Batch-size for training and validation")
+parser.add_argument('--batchsize', type=int, default=4,
+                    help="Batch-size for training and validation")
 
 # Image size
-parser.add_argument('--imgsize', type=int, default=224, help="Size of the image after transforms")
+parser.add_argument('--imgsize', type=int, default=224,
+                    help="Size of the image after transforms")
 
 # Class Weights
-parser.add_argument("--classweights", action="store_true", help="Weight loss with class imbalance")
+parser.add_argument("--classweights", action="store_true",
+                    help="Weight loss with class imbalance")
 
 # Freeze backbone
-parser.add_argument("--freeze_backbone", action="store_true", help="Freeze backbone at training start")
+parser.add_argument("--freeze_backbone", action="store_true",
+                    help="Freeze backbone at training start")
 
 # Number of epochs
-parser.add_argument('--epochs', type=int, default=20, help="Number of training epochs")
+parser.add_argument('--epochs', type=int, default=20,
+                    help="Number of training epochs")
+parser.add_argument('--epochs_freeze', type=int, default=5,
+                    help="Number of training epochs where backbone is frozen")
 
 # Learning rate
 parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
 
 # Output directory
-parser.add_argument("--outdir", type=str, default="results", help="Output directory")
+parser.add_argument("--outdir", type=str, default="results",
+                    help="Output directory")
 
 # Number of workers
-parser.add_argument("--num_workers", type=int, default=0, help="Number of workers for dataloader")
+parser.add_argument("--num_workers", type=int, default=0,
+                    help="Number of workers for dataloader")
 
 # GPU ID
-parser.add_argument("--gpu_id", type=int, default=0, help="The index of the GPU")
+parser.add_argument("--gpu_id", type=int, default=0,
+                    help="The index of the GPU")
 
 # Save frequency
-parser.add_argument("--save_freq", type=int, default=10, help="Frequency (in number of epochs) to save the model")
+parser.add_argument("--save_freq", type=int, default=10,
+                    help="Frequency (in number of epochs) to save the model")
 
 # Resume training
 parser.add_argument("--resume", action="store_true", help="Resume training")
-parser.add_argument("--ckpt", type=str, default=None, help="Checkpoint from which to resume training")
+parser.add_argument("--ckpt", type=str, default=None,
+                    help="Checkpoint from which to resume training")
 
 
 # Parse the arguments
@@ -104,6 +118,8 @@ workers = args.num_workers
 
 # Number of training epochs
 EPOCHS = args.epochs
+
+EPOCHS_FREEZE = args.epochs_freeze
 
 # Learning rate
 LEARNING_RATE = args.lr
@@ -143,7 +159,7 @@ if not os.path.isdir(history_dir):
 
 # Tensorboard
 tbwritter = SummaryWriter(log_dir=os.path.join(
-    outdir, "tensorboard"), flush_secs=30)
+    outdir, "tensorboard"), flush_secs=5)
 
 
 # Choose GPU
@@ -162,16 +178,20 @@ img_height = IMG_SIZE
 img_width = IMG_SIZE
 
 # Get data paths
-sem_concepts_path = os.path.join(data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+sem_concepts_path = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
 train_datapath = os.path.join(data_dir, "dataset_resized", "train_resized")
-train_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
+train_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
 
 valid_datapath = os.path.join(data_dir, "dataset_resized", "valid_resized")
-valid_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
+valid_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
 # Get nr_classes
-_, _, sem_type_concepts_dict, _ = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
+_, _, sem_type_concepts_dict, _ = get_semantic_concept_dataset(
+    concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
 NR_CLASSES = len(sem_type_concepts_dict)
 print(f"SEMANTIC TYPE: {semantic_type}")
@@ -185,7 +205,7 @@ if model_name == "densenet121".lower():
 
     model = densenet121(progress=True, pretrained=True)
     model.classifier = torch.nn.Linear(1024, NR_CLASSES)
-    
+
 # ResNet18
 elif model_name == "resnet18".lower():
     model = resnet18(progress=True, pretrained=True)
@@ -220,19 +240,14 @@ valid_transforms = transforms.Compose([
 
 # Data sets and class weights for loss function
 classweights = args.classweights
-if classweights:
-    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms, classweights=classweights)
-    valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
-    cw = train_set.pos_weights
+train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path,
+                               subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms, classweights=classweights)
+valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path,
+                               subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
+cw = train_set.pos_weights
+if cw is not None:
     cw = torch.from_numpy(cw).to(DEVICE)
-    print(f"Using class weights: cw={cw}")
-
-else:
-    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms)
-    valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
-    cw = train_set.pos_weights
-    print(f"Using null class weights: cw={cw}")
-
+print(f"Using class weights: cw={cw}")
 
 # Hyper-parameters
 LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum", pos_weight=cw)
@@ -243,11 +258,14 @@ VAL_LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum")
 freeze_backbone = args.freeze_backbone
 if freeze_backbone:
     freeze_feature_extractor(model=model, name=model_name)
-    OPTIMISER = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
+    OPTIMISER = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
+    SCHEDULER = None
 
 else:
     OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
+    SCHEDULER = torch.optim.lr_scheduler.LambdaLR(
+        OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
 
 # Resume training from given checkpoint
 if resume:
@@ -261,8 +279,10 @@ else:
 
 
 # Dataloaders
-train_loader = DataLoader(dataset=train_set, batch_size=BATCH_SIZE, shuffle=True, pin_memory=False, num_workers=workers)
-val_loader = DataLoader(dataset=valid_set, batch_size=BATCH_SIZE, shuffle=True, pin_memory=False, num_workers=workers)
+train_loader = DataLoader(dataset=train_set, batch_size=BATCH_SIZE,
+                          shuffle=True, pin_memory=False, num_workers=workers)
+val_loader = DataLoader(dataset=valid_set, batch_size=BATCH_SIZE,
+                        shuffle=True, pin_memory=False, num_workers=workers)
 
 
 # Train model and save best weights on validation set
@@ -284,14 +304,14 @@ for epoch in range(init_epoch, EPOCHS):
     # Put model in training mode
     model.train()
 
-
-    # If we started with frozen backbone and reach up 1/4 of the epochs
+    # If we started with frozen backbone and reach EPOCHS_FREEZE
     # We unfreeze the models
-    if freeze_backbone and (epoch+1) >= int(EPOCHS*0.25):
+    if freeze_backbone and (epoch + 1) >= EPOCHS_FREEZE:
         print("Feature extractor will be trainable from now on...")
         unfreeze_feature_extractor(model=model, name=model_name)
         OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-        SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
+        SCHEDULER = torch.optim.lr_scheduler.LambdaLR(
+            OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
         freeze_backbone = False
         print("Unfreezing complete.")
 
@@ -299,7 +319,8 @@ for epoch in range(init_epoch, EPOCHS):
     for images, labels, _ in tqdm(train_loader):
 
         # Move data and model to GPU (or not)
-        images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
+        images, labels = images.to(DEVICE, non_blocking=True), labels.to(
+            DEVICE, non_blocking=True)
 
         # Find the loss and update the model parameters accordingly
         # Clear the gradients of all optimized variables
@@ -321,7 +342,8 @@ for epoch in range(init_epoch, EPOCHS):
         OPTIMISER.step()
 
     # update scheduler at each epoch
-    SCHEDULER.step()
+    if SCHEDULER:
+        SCHEDULER.step()
 
     # Compute Average Train Loss
     avg_train_loss = run_train_loss / len(train_loader.dataset)
@@ -331,7 +353,9 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Plot to Tensorboard
     tbwritter.add_scalar("loss/train", avg_train_loss, global_step=epoch)
-    tbwritter.add_scalar("lr", SCHEDULER.get_last_lr()[0], global_step=epoch)
+    if SCHEDULER:
+        tbwritter.add_scalar("lr", SCHEDULER.get_last_lr()[
+            0], global_step=epoch)
 
     # Update Variables
     # Min Training Loss
@@ -356,7 +380,8 @@ for epoch in range(init_epoch, EPOCHS):
         for images, labels, _ in tqdm(val_loader):
 
             # Move data data anda model to GPU (or not)
-            images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
+            images, labels = images.to(DEVICE, non_blocking=True), labels.to(
+                DEVICE, non_blocking=True)
 
             # Forward pass: compute predicted outputs by passing inputs to the model
             logits = model(images)
@@ -389,13 +414,21 @@ for epoch in range(init_epoch, EPOCHS):
             model_path = os.path.join(
                 weights_dir, f"model_best.pt")
 
-            save_dict = {
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': OPTIMISER.state_dict(),
-                'sched_state_dict': SCHEDULER.state_dict(),
-                'loss': avg_train_loss,
-            }
+            if SCHEDULER:
+                save_dict = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': OPTIMISER.state_dict(),
+                    'sched_state_dict': SCHEDULER.state_dict(),
+                    'loss': avg_train_loss,
+                }
+            else:
+                save_dict = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': OPTIMISER.state_dict(),
+                    'loss': avg_train_loss,
+                }
             torch.save(save_dict, model_path)
 
             print(f"Successfully saved at: {model_path}")
@@ -407,13 +440,21 @@ for epoch in range(init_epoch, EPOCHS):
             model_path = os.path.join(
                 weights_dir, f"model_{epoch:04}.pt")
 
-            save_dict = {
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': OPTIMISER.state_dict(),
-                'sched_state_dict': SCHEDULER.state_dict(),
-                'loss': avg_train_loss,
-            }
+            if SCHEDULER:
+                save_dict = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': OPTIMISER.state_dict(),
+                    'sched_state_dict': SCHEDULER.state_dict(),
+                    'loss': avg_train_loss,
+                }
+            else:
+                save_dict = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': OPTIMISER.state_dict(),
+                    'loss': avg_train_loss,
+                }
             torch.save(save_dict, model_path)
 
 
