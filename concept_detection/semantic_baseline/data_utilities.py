@@ -115,7 +115,7 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
 
 # Class: ImgClefConc Dataset
 class ImgClefConcDataset(Dataset):
-    def __init__(self, img_datapath, concepts_sem_csv, subset_sem_csv, semantic_type, transform=None, subset=None):
+    def __init__(self, img_datapath, concepts_sem_csv, subset_sem_csv, semantic_type, transform=None, subset=None, classweights=None):
 
         # Get the desired dataset
         if subset:
@@ -137,7 +137,24 @@ class ImgClefConcDataset(Dataset):
                     matrix_labels[r, c] = 1
 
             self.img_labels = matrix_labels.copy()
+
+
+            # Compute class weights for loss function
+            if classweights:
+                
+                # pos_weights = neg / pos
+                pos_count = np.count_nonzero(matrix_labels.copy(), axis=0)
+                neg_count = len(matrix_labels) - pos_count
+
+                np.testing.assert_array_equal(np.ones_like(pos_count) * len(matrix_labels), np.sum((neg_count, pos_count), axis=0))
+                pos_weights = neg_count / pos_count
+
+                self.pos_weights = pos_weights
+            
+            else:
+                self.pos_weights = None
         
+
         else:
             self.img_labels = img_labels
 
@@ -181,8 +198,7 @@ if __name__ == "__main__":
 
     # Get data paths
     data_path = "data"
-    sem_concepts = os.path.join(
-        data_path, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+    sem_concepts = os.path.join(data_path, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
     train_data = os.path.join(data_path, "dataset_resized", "train_resized")
     train_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
@@ -191,8 +207,8 @@ if __name__ == "__main__":
     valid_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
     # Test
-    imgs_ids, imgs_labels, sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts, subset_sem_csv=train_csv, semantic_type="Miscellaneous Concepts")
+    img_ids, img_labels, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts, subset_sem_csv=train_csv, semantic_type="Miscellaneous Concepts")
 
     # print(imgs_ids)
-    print(imgs_labels)
+    print(img_labels)
     print(sem_type_concepts_dict)

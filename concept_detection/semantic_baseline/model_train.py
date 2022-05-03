@@ -32,52 +32,45 @@ parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, required=True,
-                    help="Directory of the data set.")
+parser.add_argument('--data_dir', type=str, required=True, help="Directory of the data set.")
+
+# Model
+parser.add_argument('--model', type=str, choices=["DenseNet121", "ResNet18"], default="ResNet18", help="Backbone model to train: DenseNet121 or ResNet18.")
 
 # Semantic type
 parser.add_argument('--semantic_type', type=str, required=True, choices=["Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept",
                     "Miscellaneous Concepts"], help='Semantic type:"Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept", "Miscellaneous Concepts".')
 
 # Batch size
-parser.add_argument('--batchsize', type=int, default=4,
-                    help="Batch-size for training and validation")
+parser.add_argument('--batchsize', type=int, default=4, help="Batch-size for training and validation")
 
 # Image size
-parser.add_argument('--imgsize', type=int, default=224,
-                    help="Size of the image after transforms")
+parser.add_argument('--imgsize', type=int, default=224, help="Size of the image after transforms")
 
 # Class Weights
-parser.add_argument("--classweights", action="store_true",
-                    help="Weight loss with class imbalance")
+parser.add_argument("--classweights", action="store_true", help="Weight loss with class imbalance")
 
 # Number of epochs
-parser.add_argument('--epochs', type=int, default=20,
-                    help="Number of training epochs")
+parser.add_argument('--epochs', type=int, default=20, help="Number of training epochs")
 
 # Learning rate
 parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
 
 # Output directory
-parser.add_argument("--outdir", type=str, default="results",
-                    help="Output directory")
+parser.add_argument("--outdir", type=str, default="results", help="Output directory")
 
 # Number of workers
-parser.add_argument("--num_workers", type=int, default=0,
-                    help="Number of workers for dataloader")
+parser.add_argument("--num_workers", type=int, default=0, help="Number of workers for dataloader")
 
 # GPU ID
-parser.add_argument("--gpu_id", type=int, default=0,
-                    help="The index of the GPU")
+parser.add_argument("--gpu_id", type=int, default=0, help="The index of the GPU")
 
 # Save frequency
-parser.add_argument("--save_freq", type=int, default=10,
-                    help="Frequency (in number of epochs) to save the model")
+parser.add_argument("--save_freq", type=int, default=10, help="Frequency (in number of epochs) to save the model")
 
 # Resume training
 parser.add_argument("--resume", action="store_true", help="Resume training")
-parser.add_argument("--ckpt", type=str, default=None,
-                    help="Checkpoint from which to resume training")
+parser.add_argument("--ckpt", type=str, default=None, help="Checkpoint from which to resume training")
 
 
 # Parse the arguments
@@ -166,16 +159,13 @@ img_height = IMG_SIZE
 img_width = IMG_SIZE
 
 # Get data paths
-sem_concepts_path = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+sem_concepts_path = os.path.join(data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
 train_datapath = os.path.join(data_dir, "dataset_resized", "train_resized")
-train_csvpath = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
+train_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
 
 valid_datapath = os.path.join(data_dir, "dataset_resized", "valid_resized")
-valid_csvpath = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
+valid_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
 # Get nr_classes
 _, _, sem_type_concepts_dict, _ = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
@@ -185,10 +175,18 @@ print(f"SEMANTIC TYPE: {semantic_type}")
 print(f"NR CLASSES {NR_CLASSES}")
 
 
-# model = densenet121(progress=True, pretrained=True)
-model = resnet18(progress=True, pretrained=True)
-# model.classifier = torch.nn.Linear(1024, NR_CLASSES)
-model.fc = torch.nn.Linear(512, NR_CLASSES)
+# Choose model(s)
+# DenseNet121
+if args.model.lower() == "densenet121".lower():
+
+    model = densenet121(progress=True, pretrained=True)
+    model.classifier = torch.nn.Linear(1024, NR_CLASSES)
+    
+# ResNet18
+elif args.model.lower() == "resnet18".lower():
+    model = resnet18(progress=True, pretrained=True)
+    model.fc = torch.nn.Linear(512, NR_CLASSES)
+
 
 # Put model into DEVICE (CPU or GPU)
 model = model.to(DEVICE)
@@ -215,23 +213,20 @@ valid_transforms = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
-# Datasets
-train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path,
-                               subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms)
-valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path,
-                               subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
 
-
-# Class weights for loss
+# Data sets and class weights for loss function
 if args.classweights:
-    concept_csv = os.path.join(
-        data_dir, "csv", "concepts", "top100", "new_top100_concepts.csv")
-    cw = compute_pos_weights(dataset_csv=train_csvpath,
-                             concept_csv=concept_csv)
+    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms, classweights=args.classweights)
+    valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
+    cw = train_set.pos_weights
     cw = torch.from_numpy(cw).to(DEVICE)
-    print(f"Using class weights {cw}")
+    print(f"Using class weights: cw={cw}")
+
 else:
-    cw = None
+    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms)
+    valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
+    cw = train_set.pos_weights
+    print(f"Using null class weights: cw={cw}")
 
 
 # Hyper-parameters
@@ -239,8 +234,7 @@ LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum", pos_weight=cw)
 VAL_LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum")
 OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-SCHEDULER = torch.optim.lr_scheduler.LambdaLR(
-    OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
+SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
 
 # Resume training from given checkpoint
 if resume:
@@ -254,10 +248,8 @@ else:
 
 
 # Dataloaders
-train_loader = DataLoader(dataset=train_set, batch_size=BATCH_SIZE,
-                          shuffle=True, pin_memory=False, num_workers=workers)
-val_loader = DataLoader(dataset=valid_set, batch_size=BATCH_SIZE,
-                        shuffle=True, pin_memory=False, num_workers=workers)
+train_loader = DataLoader(dataset=train_set, batch_size=BATCH_SIZE, shuffle=True, pin_memory=False, num_workers=workers)
+val_loader = DataLoader(dataset=valid_set, batch_size=BATCH_SIZE, shuffle=True, pin_memory=False, num_workers=workers)
 
 
 # Train model and save best weights on validation set
@@ -283,8 +275,7 @@ for epoch in range(init_epoch, EPOCHS):
     for images, labels, _ in tqdm(train_loader):
 
         # Move data and model to GPU (or not)
-        images, labels = images.to(DEVICE, non_blocking=True), labels.to(
-            DEVICE, non_blocking=True)
+        images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
 
         # Find the loss and update the model parameters accordingly
         # Clear the gradients of all optimized variables
