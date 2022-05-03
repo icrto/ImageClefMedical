@@ -32,30 +32,30 @@ np.random.seed(random_seed)
 # Semantic types
 SEMANTIC_TYPES = [
     "Body Part, Organ, or Organ Component",
-    "Spatial Concept",
-    "Finding",
-    "Pathologic Function",
-    "Qualitative Concept",
-    "Diagnostic Procedure",
-    "Body Location or Region",
-    "Functional Concept",
-    "Miscellaneous Concepts"
+    #     "Spatial Concept",
+    #     "Finding",
+    #     "Pathologic Function",
+    #     "Qualitative Concept",
+    #     "Diagnostic Procedure",
+    #     "Body Location or Region",
+    #     "Functional Concept",
+    #     "Miscellaneous Concepts"
 ]
 
 
 # Models
 MODELS = [
-    "2022-05-01_01-29-42",
-    "2022-05-01_01-55-28",
-    "2022-05-01_02-21-17",
-    "2022-05-01_02-47-06",
-    "2022-05-01_03-12-56",
-    "2022-05-01_03-38-44",
-    "2022-05-01_04-04-33",
-    "2022-05-01_04-30-22",
-    "2022-05-01_04-56-11"
+    "2022-05-03_19-31-47",
+    # "2022-05-01_01-29-42",
+    # "2022-05-01_01-55-28",
+    # "2022-05-01_02-21-17",
+    # "2022-05-01_02-47-06",
+    # "2022-05-01_03-12-56",
+    # "2022-05-01_03-38-44",
+    # "2022-05-01_04-04-33",
+    # "2022-05-01_04-30-22",
+    # "2022-05-01_04-56-11"
 ]
-
 
 
 # Command Line Interface
@@ -64,25 +64,32 @@ parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, required=True, help="Directory of the data set.")
+parser.add_argument('--data_dir', type=str, required=True,
+                    help="Directory of the data set.")
 
 # Subset
-parser.add_argument('--subset', type=str, choices=["train", "validation", "test"], default="validation", help="Subset of data.")
+parser.add_argument('--subset', type=str, choices=[
+                    "train", "validation", "test"], default="validation", help="Subset of data.")
 
 # Model
-parser.add_argument('--model', type=str, choices=["densenet121", "resnet18"], default="resnet18", help="Baseline model (DenseNet121, ResNet18).")
+parser.add_argument('--model', type=str, choices=["densenet121", "resnet18"],
+                    default="resnet18", help="Baseline model (DenseNet121, ResNet18).")
 
 # Batch size
-parser.add_argument('--batchsize', type=int, default=1, help="Batch-size for training and validation.")
+parser.add_argument('--batchsize', type=int, default=1,
+                    help="Batch-size for training and validation.")
 
 # Image size
-parser.add_argument('--imgsize', type=int, default=224, help="Size of the image after transforms.")
+parser.add_argument('--imgsize', type=int, default=224,
+                    help="Size of the image after transforms.")
 
 # Number of workers
-parser.add_argument("--num_workers", type=int, default=0, help="Number of workers for dataloader.")
+parser.add_argument("--num_workers", type=int, default=0,
+                    help="Number of workers for dataloader.")
 
 # GPU ID
-parser.add_argument("--gpu_id", type=int, default=0, help="The index of the GPU.")
+parser.add_argument("--gpu_id", type=int, default=0,
+                    help="The index of the GPU.")
 
 
 # Parse the arguments
@@ -122,20 +129,22 @@ img_height = IMG_SIZE
 img_width = IMG_SIZE
 
 # Get data paths
-sem_concepts_path = os.path.join(data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+sem_concepts_path = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
 
 # Train
 train_datapath = os.path.join(data_dir, "dataset_resized", "train_resized")
-train_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
+train_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
 
 # Validation
 valid_datapath = os.path.join(data_dir, "dataset_resized", "valid_resized")
-valid_csvpath = os.path.join(data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
+valid_csvpath = os.path.join(
+    data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
 
 # Test
 test_datapath = os.path.join(data_dir, "dataset_resized", "test_resized")
 test_csvpath = os.path.join(data_dir, "csv", "test_images.csv")
-
 
 
 # Go through semantic types and models
@@ -145,11 +154,11 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
     print(f"Loading the semantic type <{semantic_type}> from {modelckpt}")
 
     # Get nr_classes
-    _, _, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
+    _, _, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(
+        concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
     NR_CLASSES = len(sem_type_concepts_dict)
     print(f"NR CLASSES {NR_CLASSES}")
-
 
     # Create the model object
     if model_name.lower() == "densenet121":
@@ -160,9 +169,9 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
         model = resnet18(progress=True, pretrained=True)
         model.fc = torch.nn.Linear(512, NR_CLASSES)
 
-
     # Weights directory
-    weights_dir = os.path.join("results", "semantic_baseline", "model_checkpoints", modelckpt, "weights")
+    weights_dir = os.path.join(
+        "results", "semantic_baseline", modelckpt, "weights")
     model_file = os.path.join(weights_dir, "model_best.pt")
 
     # Load model weights
@@ -173,32 +182,30 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
     # Put model into DEVICE (CPU or GPU)
     model = model.to(DEVICE)
 
-
     # Put model into evaluation mode
     model.eval()
-
 
     # Load data
     # Test Transforms
     eval_transforms = transforms.Compose([
         transforms.CenterCrop(IMG_SIZE),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                             0.229, 0.224, 0.225])
     ])
-
 
     # Datasets
     if subset == "test":
-        eval_set = ImgClefConcDataset(img_datapath=test_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=test_csvpath, semantic_type=semantic_type, transform=eval_transforms, subset=subset)
+        eval_set = ImgClefConcDataset(img_datapath=test_datapath, concepts_sem_csv=sem_concepts_path,
+                                      subset_sem_csv=test_csvpath, semantic_type=semantic_type, transform=eval_transforms, subset=subset)
 
     else:
-        eval_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=eval_transforms)
-
+        eval_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path,
+                                      subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=eval_transforms)
 
     # Dataloaders
-    eval_loader = DataLoader(dataset=eval_set, batch_size=BATCH_SIZE, shuffle=False, pin_memory=False, num_workers=workers)
-
-
+    eval_loader = DataLoader(dataset=eval_set, batch_size=BATCH_SIZE,
+                             shuffle=False, pin_memory=False, num_workers=workers)
 
     # Create lists to append batch results
     y_true = []
@@ -213,7 +220,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
         for images, labels, img_ids in tqdm(eval_loader):
 
             # Move data data anda model to GPU (or not)
-            images, labels = images.to(DEVICE, non_blocking=True), labels.to(DEVICE, non_blocking=True)
+            images = images.to(DEVICE, non_blocking=True)
 
             # Get the logits
             logits = model(images)
@@ -222,25 +229,25 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
             outputs = torch.sigmoid(logits)
             outputs = outputs.detach().cpu()
 
-            # Get the indices of the predicted concepts (# decision threshold = 0.5)
-            indices = np.where(outputs.numpy()[0] >= 0.5)
-
             # Add the valid concepts
-            predicted_concepts = ""
-            for i in indices[0]:
-                predicted_concepts += f"{inv_sem_type_concepts_dict[i]};"
-            
-            eval_images.append(img_ids[0])
-            eval_concepts.append(predicted_concepts[:-1])
+            for batch_idx in range(images.shape[0]):
+                predicted_concepts = ""
+                # Get the indices of the predicted concepts (# decision threshold = 0.5)
+                indices = torch.where(outputs[batch_idx] >= 0.5)[0].numpy()
+                for i in indices:
+                    predicted_concepts += f"{inv_sem_type_concepts_dict[i]};"
 
-            if len(labels[0]) > 0:
-                zero_array = np.zeros_like(labels[0].cpu().detach().numpy())
-                for idx in indices:
-                    zero_array[idx] = 1
+                eval_images.append(img_ids[batch_idx])
+                eval_concepts.append(predicted_concepts[:-1])
 
-                y_pred.append(zero_array)
-                y_true.append(labels[0].numpy())
-    
+                if subset != 'test':
+                    zero_array = np.zeros_like(
+                        labels[batch_idx].cpu().detach().numpy())
+                    for idx in indices:
+                        zero_array[idx] = 1
+
+                    y_pred.append(zero_array)
+                    y_true.append(labels[batch_idx].numpy())
 
     # Generate metrics and .CSVs per model
     # Create a dictionary to obtain DataFrame
@@ -253,26 +260,31 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
 
     if len(y_true) > 0:
         print(f"/////////// Evaluation Report ////////////")
-        print(f"Exact Match Ratio: {sklearn.metrics.accuracy_score(y_true, y_pred, normalize=True, sample_weight=None):.4f}")
-        print(f"Hamming loss: {sklearn.metrics.hamming_loss(y_true, y_pred):.4f}")
-        print(f"Recall: {sklearn.metrics.precision_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
-        print(f"Precision: {sklearn.metrics.recall_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
-        print(f"F1 Measure: {sklearn.metrics.f1_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
-        
+        print(
+            f"Exact Match Ratio: {sklearn.metrics.accuracy_score(y_true, y_pred, normalize=True, sample_weight=None):.4f}")
+        print(
+            f"Hamming loss: {sklearn.metrics.hamming_loss(y_true, y_pred):.4f}")
+        print(
+            f"Recall: {sklearn.metrics.precision_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
+        print(
+            f"Precision: {sklearn.metrics.recall_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
+        print(
+            f"F1 Measure: {sklearn.metrics.f1_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
+
         save_dir = os.path.join("results", "semantic_baseline", "validation")
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
 
-        evaluation_df.to_csv(os.path.join(save_dir, f"{semantic_type}.csv"), sep="\t", index=False)
-    
+        evaluation_df.to_csv(os.path.join(
+            save_dir, f"{modelckpt}_{semantic_type}.csv"), sep="\t", index=False)
+
     else:
         save_dir = os.path.join("results", "semantic_baseline", "test")
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
-        
-        evaluation_df.to_csv(os.path.join(save_dir, f"{semantic_type}.csv"), sep="|", index=False, header=False)
 
-
+        evaluation_df.to_csv(os.path.join(
+            save_dir, f"{modelckpt}_{semantic_type}.csv"), sep="|", index=False, header=False)
 
     # Finish statement
     print("Finished.")
