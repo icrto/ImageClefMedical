@@ -18,7 +18,13 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     # print(kwargs)
     # Load the .CSV concepts
     concepts_sem = pd.read_csv(concepts_sem_csv, sep="\t")
-    subset_sem = pd.read_csv(subset_sem_csv, sep="\t")
+
+    if "subset" in kwargs.keys():
+            if kwargs['subset'].lower() == "test":
+                subset_sem = pd.read_csv(subset_sem_csv)
+    
+    else:
+        subset_sem = pd.read_csv(subset_sem_csv, sep="\t")
 
     # Get the concepts that are related with the semantic type we want
     sem_type_concepts = list()
