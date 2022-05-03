@@ -32,8 +32,7 @@ for subset in [test_path, validation_path]:
 
     # Read directory
     csv_files = [c for c in os.listdir(eval_dir) if not c.startswith('.')]
-    csv_files = [c for c in csv_files if c not in (
-        "test_agg.csv", "val_agg.csv")]
+    csv_files = [c for c in csv_files if c not in ("test_agg.csv", "val_agg.csv")]
 
     assert len(csv_files) == 9, "Check your directory."
 

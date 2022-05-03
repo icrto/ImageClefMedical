@@ -53,8 +53,9 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
         sem_type_concepts_dict[c] = index
         inv_sem_type_concepts_dict[index] = c
 
-    sem_type_concepts_dict["None"] = index + 1
-    inv_sem_type_concepts_dict[index+1] = "None"
+    # TODO: Erase uppon revision (we don't need a "None" class)
+    # sem_type_concepts_dict["None"] = index + 1
+    # inv_sem_type_concepts_dict[index+1] = "None"
 
     # print(sem_type_concepts_dict)
 
@@ -81,7 +82,9 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
 
             # Split the cuis
             for c in cuis:
-                tmp_concepts.append(c if c in sem_type_concepts else "None")
+                # TODO: Erase uppon revision
+                # tmp_concepts.append(c if c in sem_type_concepts else "None")
+                tmp_concepts.append(c if c in sem_type_concepts)
 
             tmp_concepts_unique, _ = np.unique(ar=np.array(tmp_concepts), return_counts=True)
             tmp_concepts_unique = list(tmp_concepts_unique)
@@ -91,7 +94,7 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
                 img_labels.append(label)
 
             else:
-                label = [sem_type_concepts_dict.get("None")]
+                label = []
                 img_labels.append(label)
 
 
@@ -101,12 +104,14 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
             img_labels = list()
     
     else:
+        # TODO Erase uppon revision
         # In multilabel cases, remove the "None" if exists
-        for index, label in enumerate(img_labels):
-            if len(label) > 1:
-                if sem_type_concepts_dict["None"] in label:
-                    label.remove(sem_type_concepts_dict["None"])
-                    img_labels[index] = label.copy()
+        # for index, label in enumerate(img_labels):
+        #     if len(label) > 1:
+        #         if sem_type_concepts_dict["None"] in label:
+        #             label.remove(sem_type_concepts_dict["None"])
+        #             img_labels[index] = label.copy()
+        pass
 
 
     return img_ids, img_labels, sem_type_concepts_dict, inv_sem_type_concepts_dict
