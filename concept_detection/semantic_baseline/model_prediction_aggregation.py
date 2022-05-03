@@ -60,8 +60,8 @@ for subset in [validation_path, test_path]:
                     eval_concepts.append(list())
             
             else:
-                if row.iloc[0, 0] not in eval_images:
-                    eval_images.append(row.iloc[0, 0])
+                if row.iloc[0] not in eval_images:
+                    eval_images.append(row.iloc[0])
                     eval_concepts.append(list())
 
         
@@ -74,7 +74,7 @@ for subset in [validation_path, test_path]:
                 pred_concepts = str(row["cuis"]).split(';')
             
             else:
-                pred_concepts = str(row.iloc[0, 1]).split(';')
+                pred_concepts = str(row.iloc[1]).split(';')
             
             for c in pred_concepts:
                 if c not in ("None", "nan"):
