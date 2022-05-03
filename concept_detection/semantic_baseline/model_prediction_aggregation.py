@@ -79,6 +79,9 @@ for subset in [validation_path, test_path]:
             for c in pred_concepts:
                 if c not in ("None", "nan"):
                     eval_concepts[index].append(c)
+            
+            # FIXME: Remove duplicates if needed (we don't know why this happens)
+            eval_concepts[index] = list(dict.fromkeys(eval_concepts[index]))
         
         # print(eval_concepts)
     
