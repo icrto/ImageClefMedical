@@ -17,13 +17,23 @@ def freeze_feature_extractor(model, name, freeze=True):
         
 
         # Check the classifier by its name
-        if name == "densenet121":
-            model.classifier.requires_grad = True
-            # print(model.classifier, model.classifier.requires_grad)
+        if name.lower() == "densenet121".lower():
+            for param in model.classifier.parameters():
+                print(param.name, param.requires_grad)
+                param.requires_grad = True
+                print(param.name, param.requires_grad)
+                # model.fc.requires_grad = True
+                # print(model.fc, model.fc.requires_grad)
+                # model.classifier.requires_grad = True
+                # print(model.classifier, model.classifier.requires_grad)
         
-        elif name == "resnet18":
-            model.fc.requires_grad = True
-            # print(model.fc, model.fc.requires_grad)
+        elif name.lower() == "resnet18".lower():
+            for param in model.fc.parameters():
+                print(param.name, param.requires_grad)
+                param.requires_grad = True
+                print(param.name, param.requires_grad)
+                # model.fc.requires_grad = True
+                # print(model.fc, model.fc.requires_grad)
 
     else:
         
