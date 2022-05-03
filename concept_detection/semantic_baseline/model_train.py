@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # Project Imports
 from data_utilities import get_semantic_concept_dataset, ImgClefConcDataset
-from aux_utils.aux_functions import compute_pos_weights
+from model_utilities import freeze_feature_extractor, unfreeze_feature_extractor
 
 # Fix Random Seeds
 random_seed = 42
@@ -49,6 +49,9 @@ parser.add_argument('--imgsize', type=int, default=224, help="Size of the image 
 
 # Class Weights
 parser.add_argument("--classweights", action="store_true", help="Weight loss with class imbalance")
+
+# Freeze backbone
+parser.add_argument("--freeze_backbone", action="store_true", help="Freeze backbone at training start")
 
 # Number of epochs
 parser.add_argument('--epochs', type=int, default=20, help="Number of training epochs")
@@ -176,14 +179,15 @@ print(f"NR CLASSES {NR_CLASSES}")
 
 
 # Choose model(s)
+model_name = args.model.lower()
 # DenseNet121
-if args.model.lower() == "densenet121".lower():
+if model_name == "densenet121".lower():
 
     model = densenet121(progress=True, pretrained=True)
     model.classifier = torch.nn.Linear(1024, NR_CLASSES)
     
 # ResNet18
-elif args.model.lower() == "resnet18".lower():
+elif model_name == "resnet18".lower():
     model = resnet18(progress=True, pretrained=True)
     model.fc = torch.nn.Linear(512, NR_CLASSES)
 
@@ -215,8 +219,9 @@ valid_transforms = transforms.Compose([
 
 
 # Data sets and class weights for loss function
-if args.classweights:
-    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms, classweights=args.classweights)
+classweights = args.classweights
+if classweights:
+    train_set = ImgClefConcDataset(img_datapath=train_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type, transform=train_transforms, classweights=classweights)
     valid_set = ImgClefConcDataset(img_datapath=valid_datapath, concepts_sem_csv=sem_concepts_path, subset_sem_csv=valid_csvpath, semantic_type=semantic_type, transform=valid_transforms)
     cw = train_set.pos_weights
     cw = torch.from_numpy(cw).to(DEVICE)
@@ -232,9 +237,17 @@ else:
 # Hyper-parameters
 LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum", pos_weight=cw)
 VAL_LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum")
-OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
+
+# Freeze backbone if needed to warm-up the training
+freeze_backbone = args.freeze_backbone
+if freeze_backbone:
+    freeze_feature_extractor(model=model, name=model_name)
+    OPTIMISER = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
+
+else:
+    OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
 
 # Resume training from given checkpoint
 if resume:
@@ -270,6 +283,17 @@ for epoch in range(init_epoch, EPOCHS):
 
     # Put model in training mode
     model.train()
+
+
+    # If we started with frozen backbone and reach up 1/4 of the epochs
+    # We unfreeze the models
+    if freeze_backbone and (epoch+1) >= int(EPOCHS*0.25):
+        print("Feature extractor will be trainable from now on...")
+        unfreeze_feature_extractor(model=model, name=model_name)
+        OPTIMISER = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+        SCHEDULER = torch.optim.lr_scheduler.LambdaLR(OPTIMISER, lr_lambda=lambda epoch: 0.95 ** epoch, verbose=True)
+        freeze_backbone = False
+        print("Unfreezing complete.")
 
     # Iterate through dataloader
     for images, labels, _ in tqdm(train_loader):
