@@ -3,7 +3,6 @@ import torch
 from torchvision.models import densenet121, resnet18
 
 
-
 # Function: Freeze the feature extractor of the backbone
 def freeze_feature_extractor(model, name, freeze=True):
 
@@ -14,29 +13,28 @@ def freeze_feature_extractor(model, name, freeze=True):
         for param in model.parameters():
             param.requires_grad = False
             # print(param.name, param.requires_grad)
-        
 
         # Check the classifier by its name
         if name.lower() == "densenet121".lower():
             for param in model.classifier.parameters():
-                print(param.name, param.requires_grad)
+                # print(param.name, param.requires_grad)
                 param.requires_grad = True
-                print(param.name, param.requires_grad)
+                # print(param.name, param.requires_grad)
                 # model.fc.requires_grad = True
                 # print(model.fc, model.fc.requires_grad)
                 # model.classifier.requires_grad = True
                 # print(model.classifier, model.classifier.requires_grad)
-        
+
         elif name.lower() == "resnet18".lower():
             for param in model.fc.parameters():
-                print(param.name, param.requires_grad)
+                # print(param.name, param.requires_grad)
                 param.requires_grad = True
-                print(param.name, param.requires_grad)
+                # print(param.name, param.requires_grad)
                 # model.fc.requires_grad = True
                 # print(model.fc, model.fc.requires_grad)
 
     else:
-        
+
         # We unfreeze the feature extractor
         for param in model.parameters():
             param.requires_grad = True
@@ -45,15 +43,13 @@ def freeze_feature_extractor(model, name, freeze=True):
     return
 
 
-
-# Function: Unfreeze the feature extractor of the backbone 
+# Function: Unfreeze the feature extractor of the backbone
 def unfreeze_feature_extractor(model, name):
-    
+
     # It's an alias for the previous function
     freeze_feature_extractor(model=model, name=name, freeze=False)
 
     return
-
 
 
 # Run this code
@@ -68,7 +64,6 @@ if __name__ == "__main__":
     print("Unfreezing.")
     unfreeze_feature_extractor(model=model, name="densenet121")
     print("Unfreezed.")
-
 
     # ResNet18
     model = resnet18(progress=True, pretrained=True)
