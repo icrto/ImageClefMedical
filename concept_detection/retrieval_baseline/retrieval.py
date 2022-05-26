@@ -28,8 +28,10 @@ concepts_csv = pd.read_csv(concepts_filename, sep="\t")
 all_concepts = concepts_csv["concept"]
 concepts = []
 dict_concept = dict()
+dict_concept_inverse = dict()
 for idx, c in enumerate(all_concepts):
     dict_concept[c] = idx
+    dict_concept_inverse[idx] = c
     concepts.append(to_categorical(idx, num_labels))
         
 concepts = np.asarray(concepts)
@@ -53,6 +55,13 @@ test_data = ImageClefDataset(
     dict_concept,
     'dataset_resized/new_val_subset_top100.csv',
     'dataset_resized/valid_resized', 2,
+    concepts, 1
+)
+
+infer_data = ImageClefDataset(
+    dict_concept,
+    'dataset_resized/concept_detection_valid.csv', #test_images.csv',
+    'dataset_resized/valid_resized', 3, #test_resized', 3,
     concepts, 1
 )
 
@@ -97,9 +106,6 @@ def make_trainable(net, val):
     for l in net.layers:
       l.trainable = val
 
-def euclidean_contrastive_loss(y_true, y_pred, margin=10):
-    return K.mean(y_true * K.square(y_pred) + (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
-
 input_imgs = Input(train_shape)
 feature_extractor = build_feature_extractor()
 label_encoder = build_label_encoder()
@@ -110,11 +116,11 @@ feat_img = feature_extractor(input_img)
 feat_label = label_encoder(input_label)
 
 cosine_similarity_matrix = Lambda(lambda x: K.dot(K.l2_normalize(x[0]), K.transpose(K.l2_normalize(x[1]))), output_shape=(num_labels,))([feat_img, feat_label])
-#cosine_similarity_matrix = Lambda(lambda x: (K.dot(K.l2_normalize(x[0]), K.transpose(K.l2_normalize(x[1])))+1)/2, output_shape=(num_labels,))([feat_img, feat_label])
 
 training_model = Model([input_img, input_label], [cosine_similarity_matrix])
-training_model.load_weights('./training_weights_083.h5')
+#training_model.load_weights('./training_weights_079.h5')
 training_model.compile(optimizer=opt, loss='binary_crossentropy')
+
 
 path = "./models"
 if os.path.isdir(path) == True:
@@ -123,8 +129,9 @@ os.mkdir(path)
 
 checkpoint = ModelCheckpoint('./models/training_weights_{epoch:03d}.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 early = EarlyStopping(monitor='val_loss', patience=30, verbose=1, mode='min')
+checkpoint_2 = ModelCheckpoint('./models/c_training_weights_{epoch:03d}.h5', period=50) 
 
-#training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint, early], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
+training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint, checkpoint_2], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
 
 labels = range(0, num_labels)
 labels = to_categorical(labels, num_labels)
@@ -187,4 +194,50 @@ def evaluate():
     print('F1-Score Top 1: ' + str(sklearn.metrics.f1_score(y_true=y_true, y_pred=np.asarray(top1_predicted_labels), average='samples')))
     print('Percentage of closest concepts that exist in the labels: ' + str(contains/len(test_data)))
 
+def infer():
+    cosine_similarity_matrix = []
+    top1_predicted_labels = []
+    eval_concepts = []
+    eval_images = []
+    for idx in range(0, len(infer_data)):
+        eval_images.append(infer_data.image_names[idx])
+        infer_data_img, infer_data_lbl = infer_data[idx]
+        image_features = feature_extractor.predict(infer_data_img)
+        cosine_similarity_image = cosine_similarity(image_features, encoded_labels)
+        cosine_similarity_matrix.append(cosine_similarity_image)
+        top5 = np.asarray(cosine_similarity_image).argsort()[0][-5:][::-1]
+        top1 = top5[0]
+        pred = np.zeros((num_labels,))
+        pred[top1] = 1
+        top1_predicted_labels.append(pred)
+
+    norm_matrix = (cosine_similarity_matrix-np.min(cosine_similarity_matrix))/np.max(cosine_similarity_matrix-np.min(cosine_similarity_matrix))
+    max_array = []
+    for i in range(len(norm_matrix)):
+        max_array.append(np.max(norm_matrix[i]))
+        
+    avg = np.average(max_array)
+    std = np.std(max_array)
+    threshold = avg + std*0.2   
+    y_pred = np.zeros((len(norm_matrix), num_labels))#np.where(norm_matrix > threshold, 1, 0)
+    #y_pred = np.reshape(y_pred, (y_pred.shape[0], y_pred.shape[-1]))
+    for i in range(len(y_pred)):
+        img_concepts = []
+        y_pred[i][np.where(top1_predicted_labels[i] == 1)[0]] = 1
+        all_ones = np.where(y_pred[i] == 1)[0]
+        for idx in all_ones:
+            img_concepts.append(dict_concept_inverse[idx])
+        eval_concepts.append(';'.join(img_concepts))
+    eval_set = dict()
+    eval_set["ID"] = eval_images
+    eval_set["cuis"] = eval_concepts
+
+    evaluation_df = pd.DataFrame(data=eval_set)
+    # VALID
+    evaluation_df.to_csv('./infer_results.csv', sep='\t', index=False)
+    # TEST
+    #evaluation_df.to_csv('./infer_results.csv', sep='|', index=False, header=False)
+
+threshold = 0
 evaluate()
+infer()

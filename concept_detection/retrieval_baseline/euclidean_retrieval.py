@@ -14,44 +14,52 @@ import tensorflow.keras.backend as K
 from load_data_sequence import ImageClefDataset
 import sklearn.metrics
 
-num_labels = 100
-embed_size = 256
-batch_size = 100
-epochs = 500
-opt = Adam(lr=5e-6)
+num_labels = 32
+embed_size = 128
+epochs = 1000
+opt = Adam(lr=1e-6)
 cosine_sim = True
 train_shape = (224, 224, 1)
 
-concepts_filename = 'dataset_resized/new_top100_concepts.csv'
+concepts_filename = 'dataset_resized/new_top32_concepts.csv'
 concepts_csv = pd.read_csv(concepts_filename, sep="\t")
 all_concepts = concepts_csv["concept"]
 concepts = []
 dict_concept = dict()
+dict_concept_inverse = dict()
 for idx, c in enumerate(all_concepts):
     dict_concept[c] = idx
-    concepts.append(to_categorical(idx, num_labels))
+    dict_concept_inverse[idx] = c
+    concepts.append(to_categorical(idx, len(all_concepts)))
         
 concepts = np.asarray(concepts)
 print(concepts.shape)
 
 train_data = ImageClefDataset(
     dict_concept,
-    'dataset_resized/new_train_subset_top100.csv',
+    'dataset_resized/new_train_subset_top32.csv',
     'dataset_resized/train_resized', 0,
-    concepts, 100
+    concepts, num_labels
 )
 
 valid_data = ImageClefDataset(
     dict_concept,
-    'dataset_resized/new_train_subset_top100.csv',
+    'dataset_resized/new_train_subset_top32.csv',
     'dataset_resized/train_resized', 1,
-    concepts, 100
+    concepts, num_labels
 )
 
 test_data = ImageClefDataset(
     dict_concept,
-    'dataset_resized/new_val_subset_top100.csv',
+    'dataset_resized/new_val_subset_top32.csv',
     'dataset_resized/valid_resized', 2,
+    concepts, 1
+)
+
+infer_data = ImageClefDataset(
+    dict_concept,
+    'dataset_resized/concept_detection_valid.csv',
+    'dataset_resized/valid_resized', 3,
     concepts, 1
 )
 
@@ -83,8 +91,8 @@ def build_feature_extractor():
     return feat_extractor
 
 def build_label_encoder():
-    label_input = Input((num_labels,))
-    x = Dense(num_labels * 2)(label_input)
+    label_input = Input((len(all_concepts),))
+    x = Dense(embed_size/2)(label_input)
     x = LeakyReLU(0.2)(x)
     x = Dropout(0.25)(x)
     x = Dense(embed_size, activation = 'tanh')(x)
@@ -110,7 +118,7 @@ feature_extractor = build_feature_extractor()
 label_encoder = build_label_encoder()
 
 input_img = Input(train_shape)
-input_label = Input((num_labels,))
+input_label = Input((len(all_concepts),))
 feat_img = feature_extractor(input_img)
 feat_label = label_encoder(input_label)
 
@@ -118,21 +126,23 @@ distance = Lambda(lambda x: distance_lambda(x[0], x[1]), output_shape=(num_label
 
 training_model = Model([input_img, input_label], [distance])
 training_model.compile(optimizer=opt, loss=contrastive_loss)
-#training_model.load_weights('./eucl_training_weights_005.h5')
+
 
 path = "./models"
 if os.path.isdir(path) == True:
   shutil.rmtree(path)
 os.mkdir(path)
 
-checkpoint = ModelCheckpoint('./models/eucl_training_weights_{epoch:03d}.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
+checkpoint_1 = ModelCheckpoint('./models/eucl_training_weights_{epoch:03d}.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 early = EarlyStopping(monitor='val_loss', patience=30, verbose=1, mode='min')
+checkpoint_2 = ModelCheckpoint('./models/e_training_weights_{epoch:03d}.h5', period=50) 
 
-training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint, early], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
-training_model.save_weights('./models/eucl_training_weights_final.h5')
+training_model.fit_generator(train_data, validation_data=valid_data, callbacks=[checkpoint_1,checkpoint_2], epochs=epochs, steps_per_epoch=len(train_data), workers=1)
+#training_model.save_weights('./models/e_training_weights_final.h5')
 
-labels = range(0, num_labels)
-labels = to_categorical(labels, num_labels)
+
+labels = range(0, len(all_concepts))
+labels = to_categorical(labels, len(all_concepts))
 encoded_labels = label_encoder.predict(labels)
 
 def np_euclidean_distance(image_encodings, label_encodings):
@@ -157,13 +167,14 @@ def evaluate():
         top5 = distance_image.argsort()[:5]
         top3 = top5[:3]
         top1 = top5[0]
-        pred = np.zeros((num_labels,))
+        #print(top1)
+        pred = np.zeros((len(all_concepts),))
         pred[top5] = 1
         top5_predicted_labels.append(pred)
-        pred = np.zeros((num_labels,))
+        pred = np.zeros((len(all_concepts),))
         pred[top3] = 1
         top3_predicted_labels.append(pred)
-        pred = np.zeros((num_labels,))
+        pred = np.zeros((len(all_concepts),))
         pred[top1] = 1
         top1_predicted_labels.append(pred)
         
@@ -178,7 +189,7 @@ def evaluate():
         
     avg = np.average(min_array)
     std = np.std(min_array)
-    threshold = avg + std*0.2
+    threshold = avg + std*0#.2
     print(threshold)
     y_pred = np.where(norm_matrix < threshold, 1, 0)
     y_pred = np.reshape(y_pred, (y_pred.shape[0], y_pred.shape[-1]))
@@ -197,4 +208,43 @@ def evaluate():
     print('F1-Score Top 1: ' + str(sklearn.metrics.f1_score(y_true=y_true, y_pred=np.asarray(top1_predicted_labels), average='samples')))
     print('Percentage of closest concepts that exist in the labels: ' + str(contains/len(test_data)))
 
+def infer():
+    euclidean_distance_matrix = []
+    top1_predicted_labels = []
+    eval_concepts = []
+    eval_images = []
+    for idx in range(0, len(infer_data)):
+        eval_images.append(infer_data.image_names[idx])
+        infer_data_img, infer_data_lbl = infer_data[idx]
+        image_features = feature_extractor.predict(infer_data_img)
+        distance_image = np_euclidean_distance(image_features, encoded_labels)
+        euclidean_distance_matrix.append(distance_image)
+        top1 = distance_image.argsort()[0]
+        pred = np.zeros((len(all_concepts),))
+        pred[top1] = 1
+        top1_predicted_labels.append(pred)
+
+    norm_matrix = (euclidean_distance_matrix-np.min(euclidean_distance_matrix))/np.max(euclidean_distance_matrix-np.min(euclidean_distance_matrix))
+
+    y_pred = np.where(norm_matrix < threshold, 1, 0)
+    y_pred = np.reshape(y_pred, (y_pred.shape[0], y_pred.shape[-1]))
+    for i in range(len(y_pred)):
+        img_concepts = []
+        y_pred[i][np.where(top1_predicted_labels[i] == 1)[0]] = 1
+        all_ones = np.where(y_pred[i] == 1)[0]
+        for idx in all_ones:
+            img_concepts.append(dict_concept_inverse[idx])
+        eval_concepts.append(';'.join(img_concepts))
+    eval_set = dict()
+    eval_set["ID"] = eval_images
+    eval_set["cuis"] = eval_concepts
+
+    evaluation_df = pd.DataFrame(data=eval_set)
+    # VALID
+    evaluation_df.to_csv('./infer_results.csv', sep='\t', index=False)
+    # TEST
+    #evaluation_df.to_csv('./infer_results.csv', sep='|', index=False, header=False)
+
+threshold = 0
 evaluate()
+infer()
