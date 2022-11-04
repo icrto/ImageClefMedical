@@ -7,6 +7,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def convert_coco_format(path):
     # training
     train_csv = os.path.join(path, 'caption_prediction_train.csv')
@@ -15,7 +16,8 @@ def convert_coco_format(path):
     train_dict = {"images": [], "annotations": []}
     for idx, row in train_df.iterrows():
         train_dict["images"].append({"id": idx, "file_name": row["ID"]})
-        train_dict["annotations"].append({"image_id": idx, "id": idx, "caption": row["caption"]})
+        train_dict["annotations"].append(
+            {"image_id": idx, "id": idx, "caption": row["caption"]})
 
     with open(os.path.join(path, 'caption_prediction_train_coco.json'), 'w') as outfile:
         json.dump(train_dict, outfile)
@@ -27,7 +29,8 @@ def convert_coco_format(path):
     val_dict = {"images": [], "annotations": []}
     for idx, row in val_df.iterrows():
         val_dict["images"].append({"id": idx, "file_name": row["ID"]})
-        val_dict["annotations"].append({"image_id": idx, "id": idx, "caption": row["caption"]})
+        val_dict["annotations"].append(
+            {"image_id": idx, "id": idx, "caption": row["caption"]})
 
     with open(os.path.join(path, 'caption_prediction_valid_coco.json'), 'w') as outfile:
         json.dump(val_dict, outfile)
@@ -65,13 +68,15 @@ def compute_stats(jsonfile, tokenizer):
     ax.axvline(arr.mean(), color='k', linestyle='dashed', linewidth=1)
 
     _, max_ylim = plt.ylim()
-    ax.text(arr.mean()*1.1, max_ylim*0.9, 'Mean: {:.2f}'.format(arr.mean()))
+    ax.text(arr.mean() * 1.1, max_ylim * 0.9,
+            'Mean: {:.2f}'.format(arr.mean()))
 
     dirname = os.path.dirname(jsonfile)
     if 'train' in jsonfile:
         plt.savefig(os.path.join(dirname, "caption_hist_train.png"))
     elif 'valid' in jsonfile:
         plt.savefig(os.path.join(dirname, "caption_hist_valid.png"))
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -108,7 +113,7 @@ class Dataset(torch.utils.data.Dataset):
         )
 
         img = Image.open(img_path).convert("RGB")
-        
+
         if self.transform:
             img = self.transform(img)
 
@@ -133,7 +138,8 @@ class Dataset(torch.utils.data.Dataset):
             # because the text model automatically shifts the labels, the labels correspond exactly to `decoder_input_ids`.
             # We have to make sure that the PAD token is ignored
             sample["labels"] = torch.where(
-                sample["labels"] == self.tokenizer.pad_token_id, -100, sample["labels"]
+                sample["labels"] == self.tokenizer.pad_token_id, -
+                100, sample["labels"]
             )
         else:
             sample["id"] = self.ids[index]
@@ -144,13 +150,13 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.ids)
 
+
 if __name__ == "__main__":
     from transformers import AutoTokenizer
     DATA_PATH = "/media/TOSHIBA6T/ICC2022/dataset"
-    #convert_coco_format(DATA_PATH)
+    convert_coco_format(DATA_PATH)
 
-    
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
 
     compute_stats(
         "/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_train_coco.json", tokenizer
