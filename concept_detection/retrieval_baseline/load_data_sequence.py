@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.utils import to_categorical, Sequence
 from tensorflow.keras.preprocessing.image import img_to_array, load_img, Iterator
 
-num_concepts = 100
+num_concepts = 32
 
 class ImageClefDataset(Sequence):
     # dset: train (0), valid (1) or test (2)
@@ -18,11 +18,12 @@ class ImageClefDataset(Sequence):
         self.dset = dset
 
         self.data_folder = data_folder
-        self.label_matrix = np.zeros((len(all_image_names), num_concepts))
-        for i in range(len(all_image_names)):
-            concepts_per_image = data_csv["cuis"][i].split(";")
-            for c in concepts_per_image:
-                self.label_matrix[i][dict_concept[c]] = 1
+        self.label_matrix = np.zeros((len(all_image_names), len(self.concepts)))
+        if dset != 3:
+            for i in range(len(all_image_names)):
+                concepts_per_image = data_csv["cuis"][i].split(";")
+                for c in concepts_per_image:
+                    self.label_matrix[i][dict_concept[c]] = 1
 
         print(self.label_matrix.shape)
         train_ratio = int(0.85 * len(data_csv))
@@ -60,7 +61,11 @@ class ImageClefDataset(Sequence):
         data = []
         targets = []
         images = []
-        conc = []
+
+        chosen_concepts = range(len(self.concepts))
+        if self.dset < 2:
+            chosen_concepts = np.random.choice(range(len(self.concepts)), num_concepts, replace=False)
+        
         for i in indexes:
             image = load_img(self.data_folder + '/' + self.image_names[i] + '.jpg',
                 grayscale=True,
@@ -70,9 +75,9 @@ class ImageClefDataset(Sequence):
             image = (image - 127.5) / 127.5
             image = np.reshape(image, (224, 224, 1))
             images.append(image)
-            targets.append(self.label_matrix[i])
+            targets.append(self.label_matrix[i][chosen_concepts])
 
-        if self.dset == 2:
+        if self.dset >= 2:
             return np.asarray(images), np.asarray(targets)
 
-        return [np.asarray(images), self.concepts], np.asarray(targets)
+        return [np.asarray(images), self.concepts[chosen_concepts]], np.asarray(targets)
