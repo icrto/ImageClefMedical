@@ -36,6 +36,8 @@ python3 captioning/baseline_without_concepts/dataset.py ```. This script will co
 
 ### Baseline without concepts
 
+To train the baseline Vision Encoder-Decoder Transformer model, just run ```python3 captioning/baseline_without_concepts/train.py```
+
 ### Modified OSCAR
 
 
