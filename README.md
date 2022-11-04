@@ -6,6 +6,18 @@ You can find the paper [here](http://ceur-ws.org/Vol-3180/paper-116.pdf).
 
 ## Dataset Structure
 
+```
+ImageClefMedical/data
+    train/
+    valid/
+    test/
+    caption_prediction_train.csv
+    caption_prediction_valid.csv
+    concept_detection_train.csv
+    concept_detection_valid.csv
+    
+```    
+
 ## Concept Detection
 
 ### Multilabel baseline
