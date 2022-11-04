@@ -19,6 +19,9 @@ ImageClefMedical/dataset
     concept_detection_valid.csv
     concepts.csv
 ```    
+## Preprocessing
+
+Start by running ```python3 preprocessing/get_topconcepts.py``` to obtain the train_top100.csv, valid_top100.csv and top100_concepts.csv files. top100_concepts.csv corresponds to the concepts.csv file, but filtered to contain only the top-K most-frequent concepts. The train/valid_top100.csv correspond to the concept_detection_train/valid.csv files, respectively, but the concepts not present in the top-K are removed (images that end up without any valid concept are also removed).
 
 ## Concept Detection
 
