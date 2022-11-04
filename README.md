@@ -4,6 +4,8 @@ This is the official repository for the VCMI's Team submission to [ImageClefmedi
 
 You can find the paper [here](http://ceur-ws.org/Vol-3180/paper-116.pdf).
 
+For more information please contact isabel.riotorto@inesctec.pt.
+
 ## Dataset Structure
 
 ```
@@ -15,7 +17,6 @@ ImageClefMedical/data
     caption_prediction_valid.csv
     concept_detection_train.csv
     concept_detection_valid.csv
-    
 ```    
 
 ## Concept Detection
