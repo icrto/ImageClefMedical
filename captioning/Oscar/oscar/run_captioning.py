@@ -18,8 +18,7 @@ from oscar.utils.logger import setup_logger
 from oscar.utils.tsv_file_ops import (tsv_writer, concat_tsv_files,
                                       delete_tsv_files, reorder_tsv_keys)
 from oscar.utils.misc import (mkdir, set_seed)
-from oscar.utils.caption_evaluate import (evaluate_on_coco_caption,
-                                          ScstRewardCriterion)
+from oscar.utils.caption_evaluate import evaluate_on_coco_caption
 from oscar.modeling.modeling_bert import BertForImageCaptioning
 from transformers import BertTokenizer, BertConfig
 from transformers import AdamW, get_linear_schedule_with_warmup, get_constant_schedule_with_warmup
@@ -141,11 +140,11 @@ class CaptionDataset(Dataset):
         img_key = self.get_image_key(img_idx)
 
         if 'train' in img_key:
-            subset_folder = 'train_resized'
+            subset_folder = 'train'
         elif 'valid' in img_key:
-            subset_folder = 'valid_resized'
+            subset_folder = 'valid'
         else:
-            subset_folder = 'test_resized'
+            subset_folder = 'test'
 
         img_path = os.path.join(
             self.base_path,
@@ -377,7 +376,7 @@ def make_data_loader(args,
                             tokenizer,
                             args,
                             transform,
-                            is_train=(is_train and not args.scst))
+                            is_train=is_train)
     if is_train:
         shuffle = True
         images_per_gpu = args.per_gpu_train_batch_size
@@ -478,12 +477,6 @@ def train(args, train_dataloader, val_dataloader, model, tokenizer):
                 args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
 
-    if args.scst:
-        scst_criterion = ScstRewardCriterion(
-            baseline_type=args.sc_baseline_type,
-        )
-        logger.info("  SCST training...")
-
     global_step, global_loss, global_acc = 0, 0.0, 0.0
     model.zero_grad()
     eval_log = []
@@ -493,28 +486,22 @@ def train(args, train_dataloader, val_dataloader, model, tokenizer):
         for step, (img_keys, batch) in enumerate(train_dataloader):
             batch = tuple(t.to(args.device) for t in batch)
 
-            if not args.scst:
-                model.train()
-                inputs = {
-                    'input_ids': batch[0],
-                    'attention_mask': batch[1],
-                    'token_type_ids': batch[2],
-                    'pixel_values': batch[3],
-                    'masked_pos': batch[4],
-                    'masked_ids': batch[5]
-                }
-                outputs = model(**inputs)
-                loss, logits = outputs[:2]
-                masked_ids = inputs['masked_ids']
-                masked_ids = masked_ids[masked_ids != 0]
-                batch_score = compute_score_with_logits(logits, masked_ids)
-                batch_acc = torch.sum(batch_score.float()) / torch.sum(
-                    inputs['masked_pos'])
-            else:
-                loss = scst_train_iter(args, train_dataloader, model,
-                                       scst_criterion, img_keys, batch,
-                                       tokenizer)
-                batch_acc = scst_criterion.get_score()
+            model.train()
+            inputs = {
+                'input_ids': batch[0],
+                'attention_mask': batch[1],
+                'token_type_ids': batch[2],
+                'pixel_values': batch[3],
+                'masked_pos': batch[4],
+                'masked_ids': batch[5]
+            }
+            outputs = model(**inputs)
+            loss, logits = outputs[:2]
+            masked_ids = inputs['masked_ids']
+            masked_ids = masked_ids[masked_ids != 0]
+            batch_score = compute_score_with_logits(logits, masked_ids)
+            batch_acc = torch.sum(batch_score.float()) / torch.sum(
+                inputs['masked_pos'])
 
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
@@ -572,72 +559,6 @@ def train(args, train_dataloader, val_dataloader, model, tokenizer):
                         with open(os.path.join(args.output_dir, 'eval_logs.json'), 'w') as f:
                             json.dump(eval_log, f)
     return checkpoint_dir
-
-
-def scst_train_iter(args, train_dataloader, model, scst_criterion, img_keys,
-                    batch, tokenizer):
-    cls_token_id, sep_token_id, pad_token_id, mask_token_id = \
-        tokenizer.convert_tokens_to_ids([tokenizer.cls_token,
-                                         tokenizer.sep_token, tokenizer.pad_token, tokenizer.mask_token]
-                                        )
-    inputs = {
-        'is_decode': True,
-        'input_ids': batch[0],
-        'attention_mask': batch[1],
-        'token_type_ids': batch[2],
-        'pixel_values': batch[3],
-        'masked_pos': batch[4],
-        'do_sample': False,
-        'bos_token_id': cls_token_id,
-        'pad_token_id': pad_token_id,
-        'eos_token_ids': [sep_token_id],
-        'mask_token_id': mask_token_id,
-        # for adding concepts
-        'add_concepts': args.add_concepts,
-        'od_labels_start_posid': args.max_seq_a_length,
-        # hyperparameters of beam search
-        'max_length': args.max_gen_length,
-        'num_beams': args.sc_beam_size,
-        "temperature": args.temperature,
-        "top_k": args.top_k,
-        "top_p": args.top_p,
-        "repetition_penalty": args.repetition_penalty,
-        "length_penalty": args.length_penalty,
-        "num_return_sequences": 1,
-        "num_keep_best": 1,
-    }
-
-    def _ids_to_captions(all_ids):
-        captions = []
-        for ids in all_ids:
-            c = tokenizer.decode(ids.tolist(), skip_special_tokens=True)
-            captions.append(c)
-        return captions
-
-    if args.sc_baseline_type == 'greedy':
-        model.eval()
-        with torch.no_grad():
-            greedy_res_raw, _ = model(**inputs)
-            greedy_res_raw.squeeze_(1)  # batch_size * max_len
-        greedy_res = _ids_to_captions(greedy_res_raw)
-    else:
-        greedy_res = None
-
-    model.train()
-    inputs['do_sample'] = True
-    inputs['num_return_sequences'] = args.sc_train_sample_n
-    sample_res_raw, sample_logprobs = model(**inputs)
-    sample_res_raw.squeeze_(1)
-    sample_logprobs.squeeze_(1)
-    assert sample_logprobs.requires_grad == True
-    assert sample_res_raw.requires_grad == False
-    sample_res = _ids_to_captions(sample_res_raw)
-
-    gt_res = [
-        train_dataloader.dataset.get_captions_by_key(k) for k in img_keys
-    ]
-    loss = scst_criterion(gt_res, greedy_res, sample_res, sample_logprobs)
-    return loss
 
 
 def get_predict_filename(output_dir, json_file, args):
@@ -772,8 +693,6 @@ def test(args, test_dataloader, model, tokenizer, predict_file):
 
 def restore_training_settings(args):
     if args.do_train:
-        if not args.scst:
-            return args
         checkpoint = args.model_name_or_path
     else:
         assert args.do_test or args.do_eval
@@ -782,10 +701,7 @@ def restore_training_settings(args):
     # restore training settings, check hasattr for backward compatibility
     train_args = torch.load(op.join(checkpoint, 'training_args.bin'))
     if hasattr(train_args, 'max_seq_a_length'):
-        if hasattr(train_args, 'scst') and train_args.scst:
-            max_concepts_len = train_args.max_seq_length - train_args.max_gen_length
-        else:
-            max_concepts_len = train_args.max_seq_length - train_args.max_seq_a_length
+        max_concepts_len = train_args.max_seq_length - train_args.max_seq_a_length
         max_seq_length = args.max_gen_length + max_concepts_len
         args.max_seq_length = max_seq_length
         logger.warning(
@@ -862,37 +778,37 @@ def main():
         type=str,
         help="GPU id.")
     parser.add_argument("--data_dir",
-                        default='/media/TOSHIBA6T/ICC2022/dataset/',
+                        default='dataset/',
                         type=str,
                         required=False,
                         help="The input data dir with all required files.")
     parser.add_argument(
         "--train_json",
-        default='/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_train_top100_coco.json',
+        default='dataset/caption_prediction_train_coco.json',
         type=str,
         required=False,
         help="json (in coco format) file for training.")
     parser.add_argument(
         "--val_json",
-        default='/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_valid_top100_coco.json',
+        default='dataset/caption_prediction_valid_coco.json',
         type=str,
         required=False,
         help="json (in coco format) file used for validation during training.")
     parser.add_argument(
         "--concepts_csv",
-        default='/media/TOSHIBA6T/ICC2022/dataset/new_top100_concepts.csv',
+        default='dataset/concepts.csv',
         type=str,
         required=False,
         help="csv file with the concepts and their cuis.")
     parser.add_argument(
         "--train_concepts_csv",
-        default='/media/TOSHIBA6T/ICC2022/dataset/new_train_subset_top100.csv',
+        default='dataset/concept_detection_train.csv',
         type=str,
         required=False,
         help="csv file with the concepts of every training image.")
     parser.add_argument(
         "--val_concepts_csv",
-        default='/media/TOSHIBA6T/ICC2022/dataset/new_val_subset_top100.csv',
+        default='dataset/concept_detection_valid.csv',
         type=str,
         required=False,
         help="csv file with the concepts of every validation image.")
@@ -903,7 +819,7 @@ def main():
                         help="Path to pre-trained model or model type.")
     parser.add_argument(
         "--output_dir",
-        default='/media/TOSHIBA6T/ICC2022/captioning/oscar',
+        default='results',
         type=str,
         required=False,
         help="The output directory to save checkpoint and test results.")
@@ -1072,22 +988,7 @@ def main():
                         type=int,
                         default=88,
                         help="random seed for initialization.")
-    # for self-critical sequence training
-    parser.add_argument('--scst',
-                        action='store_true',
-                        help='Self-critical sequence training')
-    parser.add_argument('--sc_train_sample_n',
-                        type=int,
-                        default=5,
-                        help="number of sampled captions for sc training")
-    parser.add_argument('--sc_baseline_type',
-                        type=str,
-                        default='greedy',
-                        help="baseline type of REINFORCE algorithm")
-    parser.add_argument('--sc_beam_size',
-                        type=int,
-                        default=1,
-                        help="beam size for scst training")
+    
     # for generation
     parser.add_argument("--eval_model_dir",
                         type=str,
@@ -1172,9 +1073,7 @@ def main():
         assert args.model_name_or_path is not None
         config = config_class.from_pretrained(args.config_name if args.config_name else
                                               args.model_name_or_path, num_labels=args.num_labels, finetuning_task='image_captioning')
-        if args.scst:
-            # avoid using too much memory
-            config.output_hidden_states = True
+
         tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name
                                                     else args.model_name_or_path, do_lower_case=args.do_lower_case)
 
@@ -1273,23 +1172,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # from torchvision.transforms import ToTensor
-    # parser = argparse.ArgumentParser()
-    # args = parser.parse_args()
-
-    # args.add_concepts = True
-    # args.img_seq_length = 196
-    # args.max_seq_length = 200
-    # args.max_seq_a_length = 100
-    # args.mask_prob = 0.15
-    # args.max_masked_tokens = 3
-
-    # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    # caption_json_file = "/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_train_coco.json"
-    # concept_file = "/media/TOSHIBA6T/ICC2022/dataset/new_top100_concepts.csv"
-    # train_concepts = "/media/TOSHIBA6T/ICC2022/dataset/new_train_subset_top100.csv"
-
-    # dataset = build_dataset(caption_json_file, concept_file, train_concepts,
-    #                         tokenizer, args, transform=ToTensor(), is_train=True)
-
-    # print(dataset[12742])
