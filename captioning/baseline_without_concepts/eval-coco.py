@@ -12,7 +12,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ann",
         type=str,
-        default="/dataset/caption_prediction_valid_coco.json",
+        default="dataset/caption_prediction_valid_coco.json",
         help="Annotation file to load.",
     )
 
