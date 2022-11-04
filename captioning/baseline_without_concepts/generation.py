@@ -63,8 +63,8 @@ if __name__ == "__main__":
     # Data
     preprocess = T.Compose([T.CenterCrop(size), T.ToTensor()])
     val_dtset = Dataset(
-        "/media/TOSHIBA6T/ICC2022/dataset/valid_resized/",
-        "/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_valid_coco.json",
+        "dataset/captions/valid",
+        "dataset/captions/caption_prediction_valid_coco.json",
         tokenizer,
         512,
         feature_extractor,

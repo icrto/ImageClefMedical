@@ -88,7 +88,7 @@ if __name__ == "__main__":
         "--logdir",
         type=str,
         default=
-        "/media/TOSHIBA6T/ICC2022/captioning/baseline_without_concepts/",
+        "results",
         help="Directory where logs and models are to be stored.",
     )
     # Model
@@ -223,16 +223,16 @@ if __name__ == "__main__":
     # Data
     preprocess = T.Compose([T.RandomResizedCrop(size), T.ToTensor()])
     tr_dtset = Dataset(
-        "/media/TOSHIBA6T/ICC2022/dataset/train_resized/",
-        "/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_train_coco.json",
+        "dataset/captions/train",
+        "dataset/caption_prediction_train_coco.json",
         tokenizer,
         args.model_max_length,
         feature_extractor,
         transform=preprocess,
     )
     val_dtset = Dataset(
-        "/media/TOSHIBA6T/ICC2022/dataset/valid_resized/",
-        "/media/TOSHIBA6T/ICC2022/dataset/caption_prediction_valid_coco.json",
+        "dataset/captions/valid/",
+        "dataset/captions/caption_prediction_valid_coco.json",
         tokenizer,
         args.model_max_length,
         feature_extractor,
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     # Model
     if args.ckpt:
         model = VisionEncoderDecoderModel.from_pretrained(args.ckpt)
-        model.encoder.pooler = None  # TODO REMOVE
+        model.encoder.pooler = None 
         print("Model weights loaded from " + args.ckpt)
     else:
         model = VisionEncoderDecoderModel.from_encoder_decoder_pretrained(
@@ -299,14 +299,11 @@ if __name__ == "__main__":
     )
 
     if (args.scst):
-        # for param in model.encoder.parameters():
-        #     param.requires_grad = False
         trainer = CustomTrainer(
             model=model,
             tokenizer=
             tokenizer,  # to ensure it is saved (useful later for loading during generation)
-            data_collator=
-            default_data_collator,  # when a tokenizer is passed the data_collator defaults to DataCollatorWithPadding, which throws an error, so we simply override this behaviour by passing the default collator
+            data_collator=default_data_collator,  # when a tokenizer is passed the data_collator defaults to DataCollatorWithPadding, which throws an error, so we simply override this behaviour by passing the default collator
             args=training_args,
             train_dataset=tr_dtset,
             eval_dataset=val_dtset,
@@ -318,8 +315,7 @@ if __name__ == "__main__":
             model=model,
             tokenizer=
             tokenizer,  # to ensure it is saved (useful later for loading during generation)
-            data_collator=
-            default_data_collator,  # when a tokenizer is passed the data_collator defaults to DataCollatorWithPadding, which throws an error, so we simply override this behaviour by passing the default collator
+            data_collator=default_data_collator,  # when a tokenizer is passed the data_collator defaults to DataCollatorWithPadding, which throws an error, so we simply override this behaviour by passing the default collator
             args=training_args,
             train_dataset=tr_dtset,
             eval_dataset=val_dtset,
