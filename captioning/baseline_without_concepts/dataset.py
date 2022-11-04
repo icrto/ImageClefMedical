@@ -7,35 +7,6 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-def convert_coco_format(path):
-    # training
-    train_csv = os.path.join(path, 'caption_prediction_train.csv')
-    train_df = pd.read_csv(train_csv, sep='\t')
-
-    train_dict = {"images": [], "annotations": []}
-    for idx, row in train_df.iterrows():
-        train_dict["images"].append({"id": idx, "file_name": row["ID"]})
-        train_dict["annotations"].append(
-            {"image_id": idx, "id": idx, "caption": row["caption"]})
-
-    with open(os.path.join(path, 'caption_prediction_train_coco.json'), 'w') as outfile:
-        json.dump(train_dict, outfile)
-
-    # validation
-    val_csv = os.path.join(path, 'caption_prediction_valid.csv')
-    val_df = pd.read_csv(val_csv, sep='\t')
-
-    val_dict = {"images": [], "annotations": []}
-    for idx, row in val_df.iterrows():
-        val_dict["images"].append({"id": idx, "file_name": row["ID"]})
-        val_dict["annotations"].append(
-            {"image_id": idx, "id": idx, "caption": row["caption"]})
-
-    with open(os.path.join(path, 'caption_prediction_valid_coco.json'), 'w') as outfile:
-        json.dump(val_dict, outfile)
-
-
 def compute_stats(jsonfile, tokenizer):
     data = COCO(jsonfile)
     hist = []
@@ -153,8 +124,6 @@ class Dataset(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer
-    DATA_PATH = "dataset"
-    convert_coco_format(DATA_PATH)
 
     tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
 
