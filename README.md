@@ -30,6 +30,10 @@ ImageClefMedical/dataset
 
 ## Caption Prediction
 
+Start by converting the dataset to COCO format by calling ```
+python3 captioning/baseline_without_concepts/dataset.py ```. This script will convert the caption_prediction_train.csv and caption_prediction_valid.csv files into COCO format and save them as caption_prediction_train_coco.json and caption_prediction_valid_coco.json, respectively.
+
+
 ### Baseline without concepts
 
 ### Modified OSCAR
