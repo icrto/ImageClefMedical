@@ -17,6 +17,7 @@ ImageClefMedical/dataset
     caption_prediction_valid.csv
     concept_detection_train.csv
     concept_detection_valid.csv
+    concepts.csv
 ```    
 
 ## Concept Detection
