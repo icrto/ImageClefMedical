@@ -223,7 +223,7 @@ if __name__ == "__main__":
     # Data
     preprocess = T.Compose([T.RandomResizedCrop(size), T.ToTensor()])
     tr_dtset = Dataset(
-        "dataset/captions/train",
+        "dataset/train/",
         "dataset/caption_prediction_train_coco.json",
         tokenizer,
         args.model_max_length,
@@ -231,8 +231,8 @@ if __name__ == "__main__":
         transform=preprocess,
     )
     val_dtset = Dataset(
-        "dataset/captions/valid/",
-        "dataset/captions/caption_prediction_valid_coco.json",
+        "dataset/valid/",
+        "dataset/caption_prediction_valid_coco.json",
         tokenizer,
         args.model_max_length,
         feature_extractor,

@@ -153,11 +153,14 @@ class Dataset(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer
-    DATA_PATH = "data/captions"
+    DATA_PATH = "dataset"
     convert_coco_format(DATA_PATH)
 
     tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
 
     compute_stats(
-        "data/captions/caption_prediction_train_coco.json", tokenizer
+        "dataset/caption_prediction_train_coco.json", tokenizer
+    )
+    compute_stats(
+        "dataset/caption_prediction_valid_coco.json", tokenizer
     )
