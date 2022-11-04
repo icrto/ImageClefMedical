@@ -14,7 +14,7 @@ from sklearn import metrics
 
 
 # Project Imports
-from aux_utils.aux_functions import get_concepts_dicts
+from preprocessing.aux_functions import get_concepts_dicts
 
 
 # Results paths
