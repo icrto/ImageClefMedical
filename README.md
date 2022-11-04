@@ -9,7 +9,7 @@ For more information please contact isabel.riotorto@inesctec.pt.
 ## Dataset Structure
 
 ```
-ImageClefMedical/data
+ImageClefMedical/dataset
     train/
     valid/
     test/
