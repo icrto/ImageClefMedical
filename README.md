@@ -21,7 +21,21 @@ ImageClefMedical/dataset
 ```    
 ## Preprocessing
 
-Start by running ```python3 preprocessing/get_topconcepts.py``` to obtain the train_top100.csv, valid_top100.csv and top100_concepts.csv files. top100_concepts.csv corresponds to the concepts.csv file, but filtered to contain only the top-K most-frequent concepts. The train/valid_top100.csv correspond to the concept_detection_train/valid.csv files, respectively, but the concepts not present in the top-K are removed (images that end up without any valid concept are also removed).
+### Top-K most-frequent concepts
+
+Run ```python3 preprocessing/get_topconcepts.py```. This script will create the following files:
+1. concepts_top100.csv
+2. concept_detection_train_top100.csv e concept_detection_valid_top100.csv
+3. caption_prediction_train_top100.csv e caption_prediction_valid_top100.csv
+
+The concepts_top100.csv corresponds to the concepts.csv file, but filtered to contain only the top-K most-frequent concepts. The other files correspond to their original counterparts but with the concepts not present in the top-K removed (images that end up without any valid concept are also removed).
+
+### Conversion to COCO format
+
+Run ```
+python3 preprocessing/convert_to_coco.py --<your_file_here>```. This script will convert the given file into COCO format and save it as <your_file_here>_coco.json.
+
+You should call this script for both caption_prediction_train.csv and caption_prediction_valid.csv files (and/or their top-K versions).
 
 ## Concept Detection
 
@@ -33,10 +47,6 @@ Start by running ```python3 preprocessing/get_topconcepts.py``` to obtain the tr
 
 
 ## Caption Prediction
-
-Start by converting the dataset to COCO format by calling ```
-python3 captioning/baseline_without_concepts/dataset.py ```. This script will convert the caption_prediction_train.csv and caption_prediction_valid.csv files into COCO format and save them as caption_prediction_train_coco.json and caption_prediction_valid_coco.json, respectively.
-
 
 ### Baseline without concepts
 
