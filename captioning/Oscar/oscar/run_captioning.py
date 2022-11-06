@@ -59,7 +59,7 @@ class CaptionDataset(Dataset):
             assert op.isfile(self.captions_file) and tokenizer is not None
 
         self.captioning_data = COCO(self.captions_file)
-        self.image_keys = self.captioning_data.getImgIds()
+        self.image_keys = self.captioning_data.getImgIds()[:50]
 
         self.tokenizer = tokenizer
         self.tensorizer = CaptionTensorizer(self.tokenizer,
@@ -558,6 +558,9 @@ def train(args, train_dataloader, val_dataloader, model, tokenizer):
 
                         with open(os.path.join(args.output_dir, 'eval_logs.json'), 'w') as f:
                             json.dump(eval_log, f)
+                if global_step > t_total:
+                    return checkpoint_dir
+
     return checkpoint_dir
 
 
@@ -693,6 +696,8 @@ def test(args, test_dataloader, model, tokenizer, predict_file):
 
 def restore_training_settings(args):
     if args.do_train:
+        if args.model_name_or_path is None:
+            return args
         checkpoint = args.model_name_or_path
     else:
         assert args.do_test or args.do_eval
