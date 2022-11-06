@@ -52,13 +52,12 @@ You should call this script for both caption_prediction_train.csv and caption_pr
 
 ### Baseline without concepts
 
-To train the baseline Vision Encoder-Decoder Transformer model, just run ```python3 captioning/baseline_without_concepts/train.py```
+To train the baseline Vision Encoder-Decoder Transformer model, just run ```python3 captioning/baseline_without_concepts/train.py```.
 
 ### Modified OSCAR
 
-TODO: install oscar package????
-
-To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py```
+To install the OSCAR package run ```pip install -e captioning/Oscar``.
+To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py```.
 
 
 
