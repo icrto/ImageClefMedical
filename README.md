@@ -56,7 +56,7 @@ To train the baseline Vision Encoder-Decoder Transformer model, just run ```pyth
 
 ### Modified OSCAR
 
-To install the OSCAR package run ```pip install -e captioning/Oscar``.
+To install the OSCAR package run ```pip install -e captioning/Oscar```.
 To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py```.
 
 
