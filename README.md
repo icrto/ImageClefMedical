@@ -35,7 +35,7 @@ The concepts_top100.csv corresponds to the concepts.csv file, but filtered to co
 ### Conversion to COCO format
 
 Run ```
-python3 preprocessing/convert_to_coco.py --<your_file_here>```. This script will convert the given file into COCO format and save it as <your_file_here>_coco.json.
+python3 preprocessing/convert_to_coco.py <your_file_here>```. This script will convert the given file into COCO format and save it as <your_file_here>_coco.json.
 
 You should call this script for both caption_prediction_train.csv and caption_prediction_valid.csv files (and/or their top-K versions).
 
