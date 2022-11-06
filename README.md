@@ -1,6 +1,6 @@
 # ImageClefMedical
 
-This is the official repository for the VCMI's Team submission to [ImageClefmedical Caption 2022](https://www.imageclef.org/2022/medical/caption).
+This is the official repository for the [VCMI](https://vcmi.inesctec.pt)'s Team submission to [ImageClefmedical Caption 2022](https://www.imageclef.org/2022/medical/caption).
 
 You can find the paper [here](http://ceur-ws.org/Vol-3180/paper-116.pdf).
 
