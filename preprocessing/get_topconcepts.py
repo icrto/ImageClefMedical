@@ -42,7 +42,7 @@ parser.add_argument('--captions_train', type=str,
 
 # Captions Val .CSV file
 parser.add_argument('--captions_val', type=str,
-                    default="caption_detection_valid.csv", help="Captions Val .CSV file.")
+                    default="caption_prediction_valid.csv", help="Captions Val .CSV file.")
 
 # Top-K concepts
 parser.add_argument('--top_k', type=int, default=100,
@@ -108,7 +108,7 @@ for fconcepts, fcaptions in zip([CONCEPTS_TRAIN, CONCEPTS_VAL], [CAPTIONS_TRAIN,
     new_images = list()
     new_concepts = list()
 
-    for index, row in tqdm.tqdm(concepts_df.iterrows()):
+    for index, row in tqdm.tqdm(concepts_df.iterrows(), total=len(concepts_df)):
 
         # Parse image and concepts
         image = row["ID"]
@@ -133,19 +133,19 @@ for fconcepts, fcaptions in zip([CONCEPTS_TRAIN, CONCEPTS_VAL], [CAPTIONS_TRAIN,
     new_subset_df = pd.DataFrame(data=new_subset)
     if SEMANTIC_TYPES:
         new_subset_df.to_csv(os.path.join(
-            DATA_DIR, fconcepts.replace('.csv', '_top{TOP_K_CONCEPTS}_sem.csv')), sep="\t", index=False)
+            DATA_DIR, fconcepts.replace('.csv', f'_top{TOP_K_CONCEPTS}_sem.csv')), sep="\t", index=False)
 
     else:
         new_subset_df.to_csv(os.path.join(
-            DATA_DIR, fconcepts.replace('.csv', '_top{TOP_K_CONCEPTS}.csv')), sep="\t", index=False)
+            DATA_DIR, fconcepts.replace('.csv', f'_top{TOP_K_CONCEPTS}.csv')), sep="\t", index=False)
 
     
     # Filter caption csv to contain only valid images
-    caption_df = pd.read_csv(fcaptions, sep="\t")
+    caption_df = pd.read_csv(os.path.join(DATA_DIR, fcaptions), sep="\t")
     new_caption_df = caption_df.loc[caption_df['ID'].isin(new_images)]
     print(f"Had {len(caption_df)} captions now have {len(new_caption_df)} captions")
 
     new_caption_df.to_csv(os.path.join(
-            DATA_DIR, fcaptions.replace('.csv', '_top{TOP_K_CONCEPTS}.csv')), index=None, sep='\t')
+            DATA_DIR, fcaptions.replace('.csv', f'_top{TOP_K_CONCEPTS}.csv')), index=None, sep='\t')
 
 print("Finished.")
