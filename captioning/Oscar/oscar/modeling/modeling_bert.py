@@ -9,7 +9,7 @@ from transformers.models.bert.modeling_bert import (
     BertEmbeddings, BertEncoder, BertPooler, BertPreTrainedModel,
     BertOnlyMLMHead,
     BaseModelOutputWithPoolingAndCrossAttentions)
-from transformers.models.vit.modeling_vit import PatchEmbeddings
+from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 from oscar.modeling.modeling_utils import CaptionPreTrainedModel
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ImageEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.patch_embeddings = PatchEmbeddings(
+        self.patch_embeddings = ViTPatchEmbeddings(
             image_size=config.image_size,
             patch_size=config.patch_size,
             num_channels=config.num_channels,
