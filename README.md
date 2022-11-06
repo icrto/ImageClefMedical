@@ -6,6 +6,8 @@ You can find the paper [here](http://ceur-ws.org/Vol-3180/paper-116.pdf).
 
 For more information please contact isabel.riotorto@inesctec.pt.
 
+## Requirements
+
 ## Dataset Structure
 
 ```
