@@ -54,13 +54,19 @@ You should call this script for both caption_prediction_train.csv and caption_pr
 
 ### Baseline without concepts
 
-To train the baseline Vision Encoder-Decoder Transformer model, just run ```python3 captioning/baseline_without_concepts/train.py```.
+To train the baseline Vision Encoder-Decoder Transformer model just run ```python3 captioning/baseline_without_concepts/train.py```.
+
+To evaluate your trained model on the validation set run ```python3 captioning/baseline_without_concepts/generation <checkpoint_to_trained_model>```.
+
+To compute the evaluation scores run ```python3 captioning/eval-coco.py <val_preds.json>```. (The val_preds.json file is generated in the previous step.)
 
 ### Modified OSCAR
 
 To install the OSCAR package run ```pip install -e captioning/Oscar```.
-To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_train```.
 
+To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_train --model_name_or_path <path_to_pretrained_checkpoint>```. This pretrained checkpoint can be obtained directly from the OSCAR repo. In the paper we used the coco_captioning_base_xe.zip checkpoint from [here](https://github.com/microsoft/Oscar/blob/master/VinVL_MODEL_ZOO.md#image-captioning-on-coco). 
+
+To evaluate your trained model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_eval --eval_model_dir <path_to_trained_checkpoint```.
 
 
 
