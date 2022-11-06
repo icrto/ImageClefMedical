@@ -68,7 +68,7 @@ To install the OSCAR package run ```pip install -e captioning/Oscar```.
 
 To train the modified OSCAR model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_train --model_name_or_path <path_to_pretrained_checkpoint>```. This pretrained checkpoint can be obtained directly from the OSCAR repo. In the paper we used the coco_captioning_base_xe.zip checkpoint from [here](https://github.com/microsoft/Oscar/blob/master/VinVL_MODEL_ZOO.md#image-captioning-on-coco). 
 
-To evaluate your trained model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_eval --eval_model_dir <path_to_trained_checkpoint```.
+To evaluate your trained model run ```python3 captioning/Oscar/oscar/run_captioning.py --do_eval --eval_model_dir <path_to_trained_checkpoint>```.
 
 
 
