@@ -63,8 +63,8 @@ if __name__ == "__main__":
     # Data
     preprocess = T.Compose([T.CenterCrop(size), T.ToTensor()])
     val_dtset = Dataset(
-        "dataset/captions/valid",
-        "dataset/captions/caption_prediction_valid_coco.json",
+        "dataset/valid",
+        "dataset/caption_prediction_valid_coco.json",
         tokenizer,
         512,
         feature_extractor,
@@ -86,9 +86,7 @@ if __name__ == "__main__":
 
         for sample in tqdm(val_loader):
             ids = sample['id']
-            names = sample['image_name']
             sample.pop('id')
-            sample.pop('image_name')
 
             sample = {k: v.to(device) for k, v in sample.items()}
             output = model.generate(**sample)
@@ -98,12 +96,12 @@ if __name__ == "__main__":
             for i in range(len(ids)):
                 res_coco.append(
                     {
-                        "image_id": ids[i].item(),
+                        "image_id": ids[i],
                         "caption": pred_str[i],
                     }
                 )
                 res_clef.append({
-                    "ID": names[i],
+                    "ID": ids[i],
                     "caption": pred_str[i],
                 })
 

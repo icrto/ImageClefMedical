@@ -74,13 +74,13 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         sample = {}
 
-        idxs = self.ids[index]
+        idx = str(self.ids[index])
 
         # image
-        img_data = self.data.loadImgs(ids=idxs)[0]
+        img_data = self.data.imgs[idx]
         img_path = os.path.join(
             self.base_path,
-            img_data["file_name"] + '.jpg',
+            img_data["id"] + '.jpg',
         )
 
         img = Image.open(img_path).convert("RGB")
@@ -93,9 +93,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # text
         if self.teacher_forcing:
-
-            id_cap = self.data.getAnnIds(imgIds=idxs)
-            caption = self.data.loadAnns(ids=id_cap)
+            caption = self.data.imgToAnns[idx]
             caption = caption[0]["caption"]
 
             sample["labels"] = self.tokenizer(
@@ -113,8 +111,7 @@ class Dataset(torch.utils.data.Dataset):
                 100, sample["labels"]
             )
         else:
-            sample["id"] = self.ids[index]
-            sample["image_name"] = img_data["file_name"]
+            sample["id"] = idx
 
         return sample
 
