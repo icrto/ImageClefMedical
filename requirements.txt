@@ -1,0 +1,13 @@
+matplotlib==3.6.2
+numpy==1.23.4
+pandas==1.5.1
+Pillow==9.3.0
+pycocoevalcap==1.2
+pycocotools==2.0.6
+tensorboard==2.10.1
+tokenizers==0.13.1
+torch==1.13.0
+torchaudio==0.13.0
+torchvision==0.14.0
+tqdm==4.64.1
+transformers==4.24.0
