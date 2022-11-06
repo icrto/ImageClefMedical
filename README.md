@@ -8,6 +8,8 @@ For more information please contact isabel.riotorto@inesctec.pt.
 
 ## Requirements
 
+You can find the package requirements in the requirements.txt file.
+
 For pycocoevalcap make sure that your locale has en_US.UTF-8, otherwise computing METEOR will throw an error. To change your locale just do ```sudo update-locale LC_ALL=en_US.UTF-8``` and reboot your computer.
 
 ## Dataset Structure
