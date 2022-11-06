@@ -60,7 +60,7 @@ To train the baseline Vision Encoder-Decoder Transformer model just run ```pytho
 
 To evaluate your trained model on the validation set run ```python3 captioning/baseline_without_concepts/generation <checkpoint_to_trained_model>```.
 
-To compute the evaluation scores run ```python3 captioning/eval-coco.py <val_preds.json>```. (The val_preds.json file is generated in the previous step.)
+To compute the evaluation scores run ```python3 captioning/eval-coco.py val_preds.json```. (The val_preds.json file is generated in the previous step.)
 
 ### Modified OSCAR
 
