@@ -1,6 +1,7 @@
 # Copyright (c) 2020 Microsoft Corporation. Licensed under the MIT license.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+import collections.abc
 import logging
 from typing import Optional, List, Union, Tuple
 import torch
@@ -9,17 +10,52 @@ from transformers.models.bert.modeling_bert import (
     BertEmbeddings, BertEncoder, BertPooler, BertPreTrainedModel,
     BertOnlyMLMHead,
     BaseModelOutputWithPoolingAndCrossAttentions)
-from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 from oscar.modeling.modeling_utils import CaptionPreTrainedModel
 
 logger = logging.getLogger(__name__)
 
+def to_2tuple(x):
+    if isinstance(x, collections.abc.Iterable):
+        return x
+    return (x, x)
+
+class PatchEmbeddings(nn.Module):
+    """
+    Image to Patch Embedding.
+    """
+
+    def __init__(
+        self,
+        image_size: int = 224,
+        patch_size: Union[int, Tuple[int, int]] = 16,
+        num_channels: int = 3,
+        embed_dim: int = 768,
+    ):
+        super().__init__()
+        image_size = to_2tuple(image_size)
+        patch_size = to_2tuple(patch_size)
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
+        self.image_size = image_size
+        self.patch_size = patch_size
+        self.num_patches = num_patches
+
+        self.projection = nn.Conv2d(num_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, pixel_values: torch.Tensor, interpolate_pos_encoding: bool = False) -> torch.Tensor:
+        _, _, height, width = pixel_values.shape
+        if not interpolate_pos_encoding:
+            if height != self.image_size[0] or width != self.image_size[1]:
+                raise ValueError(
+                    f"Input image size ({height}*{width}) doesn't match model ({self.image_size[0]}*{self.image_size[1]})."
+                )
+        x = self.projection(pixel_values).flatten(2).transpose(1, 2)
+        return x
 
 class ImageEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.patch_embeddings = ViTPatchEmbeddings(
+        self.patch_embeddings = PatchEmbeddings(
             image_size=config.image_size,
             patch_size=config.patch_size,
             num_channels=config.num_channels,
