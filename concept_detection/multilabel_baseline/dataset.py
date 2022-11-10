@@ -38,17 +38,17 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         if 'train' in self.csv_path:
-            image = Image.open(os.path.join(self.base_dir, 'train_resized', self.image_names[index] + '.jpg')).convert("RGB")
+            image = Image.open(os.path.join(self.base_dir, 'train', self.image_names[index] + '.jpg')).convert("RGB")
         elif 'test' in self.csv_path:
-            image = Image.open(os.path.join(self.base_dir, 'test_resized', self.image_names[index] + '.jpg')).convert("RGB")
+            image = Image.open(os.path.join(self.base_dir, 'test', self.image_names[index] + '.jpg')).convert("RGB")
         else:
-            image = Image.open(os.path.join(self.base_dir, 'valid_resized', self.image_names[index] + '.jpg')).convert("RGB")
+            image = Image.open(os.path.join(self.base_dir, 'valid', self.image_names[index] + '.jpg')).convert("RGB")
         
         # apply image transforms
-        if(self.transform):
+        if self.transform:
             image = self.transform(image)
 
-        if(self.labels is not None):
+        if self.labels is not None:
             targets = self.labels[index]
 
             return {
