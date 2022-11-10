@@ -2,7 +2,7 @@ import sys
 import os
 if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
-    import torch
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -93,7 +93,6 @@ if __name__ == "__main__":
     if args.resume:
         assert args.ckpt is not None, "Please specify the model checkpoint when resume is True"
 
-    # initialize the computation device
     device = f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu"
 
     timestamp, save_path = _create_folder(args.logdir)
@@ -102,9 +101,10 @@ if __name__ == "__main__":
         
     tb_writer = SummaryWriter(log_dir=save_path)
 
-    # arguments
     BASE_DIR = args.basedir
     NR_CONCEPTS = args.nr_concepts
+    if NR_CONCEPTS == 'all': NR_CONCEPTS = 8374
+    else: NR_CONCEPTS = int(NR_CONCEPTS)
     FREEZE_FE = args.freeze_fe
     WORKERS = args.num_workers
     IMG_SIZE = (224, 224)
@@ -113,12 +113,10 @@ if __name__ == "__main__":
     EPOCHS = args.epochs
     BS = args.bs
 
-    #intialize the model
     model = build_model(pretrained=True, freeze_fe=FREEZE_FE, nr_concepts=NR_CONCEPTS).to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
-    # read the training csv file
-    if NR_CONCEPTS == 'all':
+    if NR_CONCEPTS == 8374:
         train_csv = os.path.join(BASE_DIR, 'concept_detection_train.csv')
         val_csv = os.path.join(BASE_DIR, 'concept_detection_valid.csv')
         concept_dict = os.path.join(BASE_DIR, "concepts.csv")
@@ -127,7 +125,6 @@ if __name__ == "__main__":
         val_csv = os.path.join(BASE_DIR, f'concept_detection_valid_top{NR_CONCEPTS}.csv')
         concept_dict = os.path.join(BASE_DIR, f'concepts_top{NR_CONCEPTS}.csv')
 
-    # train dataset
     train_transform = transforms.Compose([
                     transforms.RandomResizedCrop(IMG_SIZE),
                     transforms.RandomRotation(degrees=45),
@@ -139,7 +136,6 @@ if __name__ == "__main__":
         train_csv, df_all_concepts=concept_dict, transform=train_transform
     )
 
-    # validation dataset
     val_transform = transforms.Compose([
                     transforms.CenterCrop(IMG_SIZE),
                     transforms.ToTensor(),
@@ -150,7 +146,6 @@ if __name__ == "__main__":
         val_csv, df_all_concepts=concept_dict, transform=val_transform
     )
 
-    # train data loader
     train_loader = DataLoader(
         train_data,
         batch_size=BS,
@@ -158,7 +153,6 @@ if __name__ == "__main__":
         num_workers=WORKERS
     )
 
-    # validation data loader
     valid_loader = DataLoader(
         valid_data,
         batch_size=BS,
@@ -186,7 +180,6 @@ if __name__ == "__main__":
     else:
         init_epoch = 0
 
-    # start the training and validation
     train_loss = []
     valid_loss = []
     best_val_loss = np.inf
@@ -216,7 +209,6 @@ if __name__ == "__main__":
         tb_writer.add_scalar('loss/train', train_epoch_loss, epoch)
         tb_writer.add_scalar('loss/val', valid_epoch_loss, epoch)
 
-    # save the trained model to disk
     torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),

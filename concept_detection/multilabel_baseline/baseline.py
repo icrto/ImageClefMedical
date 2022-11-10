@@ -15,9 +15,6 @@ def build_model(pretrained, freeze_fe, nr_concepts):
             param.requires_grad = False
 
     # make the classification layer learnable
-    if nr_concepts == 'all': nr_concepts = 8374
-    else: nr_concepts = int(nr_concepts)
-
     model.classifier = nn.Linear(1024, nr_concepts)
     return model
 
@@ -40,7 +37,7 @@ def do_epoch(model, dataloader, criterion, device, optimizer=None, weights=None,
                 outputs = torch.sigmoid(outputs)
             # compute loss
             loss = criterion(outputs, target)
-            if isinstance(criterion, nn.BCELoss) and weights:
+            if isinstance(criterion, nn.BCELoss) and weights is not None:
                 loss = (loss * weights).mean()
             # compute gradients
             if validation == False: 
