@@ -1,75 +1,51 @@
-import numpy as np
 import torch
 import torch.nn as nn
-from torchvision import models as models
+from torchvision.models import densenet121, DenseNet121_Weights
 from tqdm import tqdm
 from asl import AsymmetricLoss
 
-def model(pretrained, requires_grad, nr_concepts):
-    model = models.densenet121(progress=True, pretrained=pretrained)
-    #model = models.densenet201(progress=True, pretrained=pretrained)
-    #model = models.resnet50(progress=True, pretrained=pretrained)
+def build_model(pretrained, freeze_fe, nr_concepts):
+    weights = None
+    if pretrained:
+        weights = DenseNet121_Weights.DEFAULT
+    model = densenet121(weights=weights)
 
-    for param in model.parameters():
-        param.requires_grad = requires_grad
+    if freeze_fe:
+        for param in model.parameters():
+            param.requires_grad = False
 
     # make the classification layer learnable
-    # we have 8374 classes in total
-    #model.fc = nn.Linear(2048, 8374)
+    if nr_concepts == 'all': nr_concepts = 8374
+    else: nr_concepts = int(nr_concepts)
+
     model.classifier = nn.Linear(1024, nr_concepts)
     return model
 
 
 # training function
-def train(model, dataloader, optimizer, criterion, device, weights):
-    print('Training')
-    model.train()
+def do_epoch(model, dataloader, criterion, device, optimizer=None, weights=None, validation=False):
+    if validation == True: model.eval()
+    else: model.train()
     counter = 0
-    train_running_loss = 0.0
-    for data in tqdm(dataloader):
-        counter += 1
-        data, target = data['image'].to(device), data['label'].to(device)
-        optimizer.zero_grad()
-        # forward pass
-        outputs = model(data)
-        if not isinstance(criterion, AsymmetricLoss) and not isinstance(criterion, nn.BCEWithLogitsLoss):
-            # apply sigmoid activation to get all the outputs between 0 and 1
-            outputs = torch.sigmoid(outputs)
-        # calculate loss
-        loss = criterion(outputs, target)
-        if isinstance(criterion, nn.BCELoss):
-            print("Entrei aqui")
-            loss = (loss * weights).mean()
-        # compute gradients
-        loss.backward()
-        # update optimizer parameters
-        optimizer.step()
-        train_running_loss += loss.item()
-
-    train_loss = train_running_loss / counter
-    return train_loss
-
-
-# validation function
-def validate(model, dataloader, criterion, device, weights):
-    print('Validating')
-    model.eval()
-    counter = 0
-    val_running_loss = 0.0
-    with torch.no_grad():
+    running_loss = 0.0
+    with torch.set_grad_enabled(validation == False):
         for data in tqdm(dataloader):
             counter += 1
             data, target = data['image'].to(device), data['label'].to(device)
+            if validation == False: optimizer.zero_grad()
             # forward pass
             outputs = model(data)
             if not isinstance(criterion, AsymmetricLoss) and not isinstance(criterion, nn.BCEWithLogitsLoss):
                 # apply sigmoid activation to get all the outputs between 0 and 1
                 outputs = torch.sigmoid(outputs)
-            # Calculate loss
+            # compute loss
             loss = criterion(outputs, target)
-            if isinstance(criterion, nn.BCELoss):
+            if isinstance(criterion, nn.BCELoss) and weights:
                 loss = (loss * weights).mean()
-            val_running_loss += loss.item()
+            # compute gradients
+            if validation == False: 
+                loss.backward()
+                optimizer.step()
+            running_loss += loss.item()
 
-        val_loss = val_running_loss / counter
-        return val_loss
+        return running_loss / counter
