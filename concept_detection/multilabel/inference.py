@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import os
 import torchvision.transforms as transforms
-import sklearn.metrics
 import argparse
 
 if __name__ == "__main__":
