@@ -44,7 +44,7 @@ python preprocessing/convert_to_coco.py <your_file_here>```. This script will co
 You should call this script for both caption_prediction_train.csv and caption_prediction_valid.csv files (and/or their top-K versions).
 
 ### Generate csv for test images
-Run ```python preprocessing/gen_test_images_csv.py --datadir dataset/test```
+Run ```python preprocessing/gen_test_images_csv.py --datadir dataset/test``` to generate a csv file with all the test images. This file is needed to generate predictions for all the test images.
 
 ## Concept Detection
 
