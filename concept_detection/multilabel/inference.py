@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Eval
     parser.add_argument("--images_csv",
                     type=str,
-                    required=True,
+                    default='dataset/concept_detection_valid.csv',
                     help="csv with the images on which to run inference and generate predictions.")
 
     args = parser.parse_args()
