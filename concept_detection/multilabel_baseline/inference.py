@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from baseline import model
+from baseline import build_model
 from dataset import ImageDataset
 from tqdm import tqdm
 import numpy as np
@@ -8,120 +8,129 @@ import pandas as pd
 import os
 import torchvision.transforms as transforms
 import sklearn.metrics
+import argparse
 
-# Arguments
-DATA_DIR = "."
-TOP_K_CONCEPTS = 100
-SUBSET = 'valid_all' # change to topk to generate csv only for subset of images with topk concepts
-BASE_DIR = "/BARRACUDA8T/ImageCLEF2022/dataset_resized"
-TRAIN_FE = True # change to False to freeze entire feature extraction backbone
-IMG_SIZE = (224, 224)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Arguments to run the script.")
 
-# initialize the computation device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Processing parameters
+    parser.add_argument("--gpu_id",
+                        type=str,
+                        default="0")
+    parser.add_argument("--num_workers",
+                        type=int,
+                        default=4,
+                        help="Number of workers for dataloader.")
 
-# intialize the model
-model = model(pretrained=False, requires_grad=TRAIN_FE, nr_concepts=TOP_K_CONCEPTS).to(device)
+    # Directories and paths
+    parser.add_argument("--basedir",
+                        type=str,
+                        default=
+                        "dataset",
+                        help="Directory where dataset is stored.")
 
-# load the model checkpoint
-checkpoint = torch.load('densenet_asl/model_densenet121_100_asl_best.pth')
-best_loss_epoch = checkpoint["epoch"]
-print(f"Epoch of best val loss {best_loss_epoch}")
+    # Model
+    parser.add_argument("--nr_concepts",
+                        type=str,
+                        default='all',
+                        help="Number of concepts the model was trained with. Example: all, 100, etc.")
+    parser.add_argument("--ckpt",
+                        type=str,
+                        required=True,
+                        help="Load model from this checkpoint.")
+    
+    # Eval
+    parser.add_argument("--images_csv",
+                    type=str,
+                    required=True,
+                    help="csv with the images on which to run inference and generate predictions.")
 
-# load model weights state_dict
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
+    args = parser.parse_args()
 
-if SUBSET == 'valid_topk':
-    test_csv = os.path.join(BASE_DIR, 'new_val_subset_top100.csv')
-elif SUBSET == 'valid_all':
-    test_csv = os.path.join(BASE_DIR, 'concept_detection_valid.csv')
-elif SUBSET == 'train_topk':
-    test_csv = os.path.join(BASE_DIR, 'new_train_subset_top100.csv')
-elif SUBSET == 'train_all':
-    test_csv = os.path.join(BASE_DIR, 'concept_detection_train.csv')
-elif SUBSET == 'test':
-    test_csv = os.path.join(BASE_DIR, 'test_images.csv')
-else:
-    raise ValueError("Please choose only <valid_topk>, <valid_all>, <train_topk>, <train_all> or <test> for the SUBSET argument.")
+    BASE_DIR = args.basedir
+    LOGDIR = os.path.dirname(args.ckpt) # results are saved in model checkpoint's folder
+    NR_CONCEPTS = args.nr_concepts
+    if NR_CONCEPTS == 'all': NR_CONCEPTS = 8374
+    else: NR_CONCEPTS = int(NR_CONCEPTS)
+    CKPT = args.ckpt
+    IMG_SIZE = (224, 224)
 
-if TOP_K_CONCEPTS == 100:
-    df_all_concepts = pd.read_csv(os.path.join(BASE_DIR, "new_top100_concepts.csv"), sep="\t")
-else:    
-    df_all_concepts = pd.read_csv(os.path.join(BASE_DIR, "concepts.csv"), sep="\t")
+    device = f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu"
 
-all_concepts = df_all_concepts["concept"].tolist()
+    # intialize the model
+    model = build_model(pretrained=False, nr_concepts=NR_CONCEPTS).to(device)
 
+    # load the model checkpoint
+    checkpoint = torch.load(CKPT)
+    best_loss_epoch = checkpoint["epoch"]
+    print(f"Epoch of best val loss {best_loss_epoch}")
 
-# prepare the test dataset and dataloader
-transform = transforms.Compose([
-                transforms.CenterCrop(IMG_SIZE),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
-])
-test_data = ImageDataset(
-    test_csv, df_all_concepts=None, transform=transform
-)
+    # load model weights state_dict
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
 
-test_loader = DataLoader(
-    test_data,
-    batch_size=1,
-    shuffle=False,
-    num_workers=0
-)
+    if NR_CONCEPTS == 8374:
+        df_all_concepts = pd.read_csv(os.path.join(BASE_DIR, "concepts.csv"), sep="\t")
+    else:
+        df_all_concepts = pd.read_csv(os.path.join(BASE_DIR, f'concepts_top{NR_CONCEPTS}.csv'), sep="\t")
 
-image_ids = test_data.csv["ID"]
+    concepts_mapping = df_all_concepts["concept"].tolist()
 
-y_true = []
-y_pred = []
-eval_images = []
-eval_concepts = []
-for counter, data in enumerate(tqdm(test_loader)):
-    image = data['image'].to(device)
-    if('label' in data):
-        target = data['label']
-        y_true.append(target[0].numpy())
+    # prepare the test dataset and dataloader
+    transform = transforms.Compose([
+                    transforms.CenterCrop(IMG_SIZE),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    ])
+    test_data = ImageDataset(
+        args.images_csv, df_all_concepts=None, transform=transform
+    )
 
-    # get the predictions by passing the image through the model
-    outputs = model(image)
-    outputs = torch.sigmoid(outputs)
-    outputs = outputs.detach().cpu()
+    test_loader = DataLoader(
+        test_data,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0
+    )
 
-    indices = np.where(outputs.numpy()[0] >= 0.5)  # decision threshold = 0.5
+    image_ids = test_data.csv["ID"]
 
-    # Add the valid concepts
-    predicted_concepts = ""
-    for i in indices[0]:
-        predicted_concepts += f"{all_concepts[i]};"
+    y_true = []
+    y_pred = []
+    eval_images = []
+    eval_concepts = []
+    for counter, data in enumerate(tqdm(test_loader)):
+        image = data['image'].to(device)
 
-    eval_images.append(image_ids[counter])
-    eval_concepts.append(predicted_concepts[:-1])
+        # get the predictions by passing the image through the model
+        outputs = model(image)
+        outputs = torch.sigmoid(outputs)
+        outputs = outputs.detach().cpu()
 
-    if('label' in data):
-        zero_array = np.zeros_like(target[0])
-        for idx in indices:
-            zero_array[idx] = 1
+        indices = np.where(outputs.numpy()[0] >= 0.5)  # decision threshold = 0.5
 
-        y_pred.append(zero_array)
+        # add the valid concepts
+        predicted_concepts = ""
+        for i in indices[0]:
+            predicted_concepts += f"{concepts_mapping[i]};"
 
-# Generate Evaluation CSV
-# Create a dictionary to obtain DataFrame
-eval_set = dict()
-eval_set["ID"] = eval_images
-eval_set["cuis"] = eval_concepts
+        eval_images.append(image_ids[counter])
+        eval_concepts.append(predicted_concepts[:-1])
 
-# Save this into .CSV
-evaluation_df = pd.DataFrame(data=eval_set)
-if(SUBSET == 'test'):
-    evaluation_df.to_csv(os.path.join(DATA_DIR, f"eval_results_{SUBSET}.csv"), sep="|", index=False, header=False)
-else:
-    evaluation_df.to_csv(os.path.join(DATA_DIR, f"eval_results_{SUBSET}.csv"), sep="\t", index=False)
+    # generate Evaluation CSV
+    # create a dictionary to obtain DataFrame
+    eval_set = dict()
+    eval_set["ID"] = eval_images
+    eval_set["cuis"] = eval_concepts
 
-if len(y_true) > 0:
-    print(f"/////////// Evaluation Report ////////////")
-    print(f"Exact Match Ratio: {sklearn.metrics.accuracy_score(y_true, y_pred, normalize=True, sample_weight=None):.4f}")
-    print(f"Hamming loss: {sklearn.metrics.hamming_loss(y_true, y_pred):.4f}")
-    print(f"Recall: {sklearn.metrics.precision_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
-    print(f"Precision: {sklearn.metrics.recall_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
-    print(f"F1 Measure: {sklearn.metrics.f1_score(y_true=y_true, y_pred=y_pred, average='samples'):.4f}")
+    # Save this into .CSV
+    evaluation_df = pd.DataFrame(data=eval_set)
+    if('test' in args.images_csv):
+        evaluation_df.to_csv(os.path.join(LOGDIR, f"preds_test.csv"), sep="|", index=False, header=False)
+    else:
+        subset = args.images_csv.split('_')
+        subset = "_".join(subset[1:])
+        subset = subset[:-4]
+        evaluation_df.to_csv(os.path.join(LOGDIR, f"preds_{subset}.csv"), sep="|", index=False, header=False)
