@@ -48,11 +48,21 @@ Run ```python preprocessing/gen_test_images_csv.py --datadir dataset/test``` to 
 
 ## Concept Detection
 
-### Multilabel baseline
+### Multilabel
 
-### Retrieval baseline
+To train the multilabel model run ```python concept_detection/multilabel/train.py```. If you want to specify the number of top-K concepts to use, just add ```--nr_concepts <number_of_concepts_to_consider>```.
 
-### Semantic baseline
+To make predictions, use the ```inference.py``` script. This script has two important arguments: the images_csv and nr_concepts. The first specifies for which images you want to generate predictions. For example, you might want to generate predictions only for the images that contain at least one of the top-100 concepts. The nr_concepts argument must be set in accordance to what the model was trained with. So, if for example, you trained your model to consider only the top-100 concepts, then nr_concepts should be 100. Then, for inference, two situations arise:
+1. you want to generate predictions for the subset of images of the top-100 concepts: ```python inference.py --nr_concepts 100 --images_csv dataset/concept_detection_valid_top100.csv```
+2. although your model was trained with 100 concepts you want to generate predictions for all validation images: ```python inference.py --nr_concepts 100 --images_csv dataset/concept_detection_valid.csv```
+
+You can also use this script to generate the submission files on the test set: ```python inference.py --images_csv dataset/test_images.csv```. Don't forget to generate the test_images.csv before running inference (see the Preprocessing section).
+
+Finally, to compute the F1-score, use the ```evaluator.py``` file, specifying the ```ground_truth_path``` and ```submission_file_path```. You should take into account that the number of images of both files should match, so if you generated predictions for the top-100 subset, your ```ground_truth_path``` should be ```dataset/concept_detection_valid_top100.csv```, while if you generated predictions for the whole validation set, it should be ```dataset/concept_detection_valid.csv```.
+
+### Retrieval
+
+### Semantic
 
 
 ## Caption Prediction
