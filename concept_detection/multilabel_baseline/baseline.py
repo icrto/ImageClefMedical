@@ -4,7 +4,7 @@ from torchvision.models import densenet121, DenseNet121_Weights
 from tqdm import tqdm
 from asl import AsymmetricLoss
 
-def build_model(pretrained, freeze_fe, nr_concepts):
+def build_model(pretrained=True, freeze_fe=False, nr_concepts=100):
     weights = None
     if pretrained:
         weights = DenseNet121_Weights.DEFAULT
