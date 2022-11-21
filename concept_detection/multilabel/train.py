@@ -21,7 +21,7 @@ def _create_folder(folder):
         os.makedirs(folder)
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    results_path = os.path.join(folder, timestamp)
+    results_path = os.path.join(folder, 'multilabel', timestamp)
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
