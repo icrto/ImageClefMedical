@@ -9,6 +9,17 @@ import pandas as pd
 if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
 
+# Semantic types
+SEMANTIC_TYPES = [
+    "Body Part, Organ, or Organ Component",
+    "Spatial Concept",
+    "Finding",
+    "Pathologic Function",
+    "Qualitative Concept",
+    "Diagnostic Procedure",
+    "Body Location or Region",
+    "Functional Concept",
+]
 
 # Function: Map concepts to semantic types
 def map_concepts_to_semantic(concepts_df, semantic_types_df, column="concept"):
@@ -36,7 +47,6 @@ if __name__ == "__main__":
     # Semantic Types .CSV
     parser.add_argument('--semantic_types_csv', type=str, default="semantic_types.csv", help="Name of the .CSV semantic types file.")
 
-
     # Parse the arguments
     args = parser.parse_args()
 
@@ -45,17 +55,17 @@ if __name__ == "__main__":
     DATA_DIR = args.data_dir
     CONCEPTS_CSV = args.concepts_csv
     SEMANTIC_TYPES_CSV = args.semantic_types_csv
-
+    
 
     # Load .CSV files
     concepts_df = pd.read_csv(os.path.join(DATA_DIR, CONCEPTS_CSV), sep="\t")
     semantic_types_df = pd.read_csv(os.path.join(DATA_DIR, SEMANTIC_TYPES_CSV), sep=",")
 
-
-    # Get processed DataFrame
+    # Add column to concepts.csv with the corresponding semantic type
     processed_df = map_concepts_to_semantic(concepts_df=concepts_df, semantic_types_df=semantic_types_df)
 
     # Convert the DataFrame to a .CSV file
-    processed_df.to_csv(os.path.join(DATA_DIR, f"{CONCEPTS_CSV.split('.')[0]}_sem.csv"), sep="\t", index=False)
+    fname = os.path.join(DATA_DIR, f"{CONCEPTS_CSV.split('.')[0]}_sem.csv")
+    processed_df.to_csv(fname, sep="\t", index=False)
 
-    print("Finished")
+    print(f"Saved file to: {fname}")
