@@ -15,13 +15,12 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     assert semantic_type in ("Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure",
                              "Body Location or Region", "Functional Concept", "Miscellaneous Concepts"), f"{semantic_type} not valid. Provide a valida semantic type"
 
-    # print(kwargs)
     # Load the .CSV concepts
     concepts_sem = pd.read_csv(concepts_sem_csv, sep="\t")
 
     if "subset" in kwargs.keys():
-            if kwargs['subset'].lower() == "test":
-                subset_sem = pd.read_csv(subset_sem_csv)
+        if kwargs['subset'].lower() == "test":
+            subset_sem = pd.read_csv(subset_sem_csv)
     
     else:
         subset_sem = pd.read_csv(subset_sem_csv, sep="\t")
@@ -31,7 +30,7 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     for _, row in concepts_sem.iterrows():
 
         # Get concept_name
-        concept_name = row["concept_name"]
+        concept_name = row["semantic_types"]
 
         # Check if this concept matches the semantic type
         if concept_name in ("Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept"):
@@ -52,12 +51,6 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
     for index, c in enumerate(sem_type_concepts):
         sem_type_concepts_dict[c] = index
         inv_sem_type_concepts_dict[index] = c
-
-    # TODO: Erase uppon revision (we don't need a "None" class)
-    # sem_type_concepts_dict["None"] = index + 1
-    # inv_sem_type_concepts_dict[index+1] = "None"
-
-    # print(sem_type_concepts_dict)
 
     # Get the formatted subset
     img_ids = list()
@@ -82,9 +75,8 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
 
             # Split the cuis
             for c in cuis:
-                # TODO: Erase uppon revision
-                # tmp_concepts.append(c if c in sem_type_concepts else "None")
-                tmp_concepts.append(c if c in sem_type_concepts)
+                if c in sem_type_concepts:
+                    tmp_concepts.append(c)
 
             tmp_concepts_unique, _ = np.unique(ar=np.array(tmp_concepts), return_counts=True)
             tmp_concepts_unique = list(tmp_concepts_unique)
@@ -104,13 +96,6 @@ def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type
             img_labels = list()
     
     else:
-        # TODO Erase uppon revision
-        # In multilabel cases, remove the "None" if exists
-        # for index, label in enumerate(img_labels):
-        #     if len(label) > 1:
-        #         if sem_type_concepts_dict["None"] in label:
-        #             label.remove(sem_type_concepts_dict["None"])
-        #             img_labels[index] = label.copy()
         pass
 
 
@@ -202,18 +187,12 @@ class ImgClefConcDataset(Dataset):
 if __name__ == "__main__":
 
     # Get data paths
-    data_path = "data"
-    sem_concepts = os.path.join(data_path, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+    data_path = "dataset"
+    sem_concepts = os.path.join(data_path, "concepts_top100_sem.csv")
 
-    train_data = os.path.join(data_path, "dataset_resized", "train_resized")
-    train_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
+    train_csv = os.path.join(data_path, "concept_detection_train_top100.csv")
 
-    valid_data = os.path.join(data_path, "dataset_resized", "valid_resized")
-    valid_csv = os.path.join(data_path, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
-
-    # Test
+    print("Processing...")
     img_ids, img_labels, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(concepts_sem_csv=sem_concepts, subset_sem_csv=train_csv, semantic_type="Miscellaneous Concepts")
 
-    # print(imgs_ids)
-    print(img_labels)
-    print(sem_type_concepts_dict)
+    print(img_ids, img_labels)
