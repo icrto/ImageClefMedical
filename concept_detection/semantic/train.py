@@ -14,7 +14,7 @@ if os.getcwd() not in sys.path:
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from torchvision.models import densenet121, resnet18
+from torchvision.models import densenet121, resnet18, DenseNet121_Weights, ResNet18_Weights
 from torch.utils.tensorboard import SummaryWriter
 
 # Project Imports
@@ -32,23 +32,27 @@ parser = argparse.ArgumentParser()
 
 # Add the arguments
 # Data directory
-parser.add_argument('--data_dir', type=str, required=True,
+parser.add_argument("--data_dir", type=str, default="dataset",
                     help="Directory of the data set.")
 
 # Model
-parser.add_argument('--model', type=str, choices=["DenseNet121", "ResNet18"],
-                    default="ResNet18", help="Backbone model to train: DenseNet121 or ResNet18.")
+parser.add_argument("--model", type=str, choices=["DenseNet121", "ResNet18"],
+                    default="DenseNet121", help="Backbone model to train: DenseNet121 or ResNet18.")
 
 # Semantic type
-parser.add_argument('--semantic_type', type=str, required=True, choices=["Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept",
-                    "Miscellaneous Concepts"], help='Semantic type:"Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept", "Miscellaneous Concepts".')
+parser.add_argument("--semantic_type", type=str, required=True, choices=["Body Part, Organ, or Organ Component", "Spatial Concept", "Finding", "Pathologic Function", "Qualitative Concept", "Diagnostic Procedure", "Body Location or Region", "Functional Concept",
+                    "Miscellaneous Concepts"], help="Semantic type: 'Body Part, Organ, or Organ Component', 'Spatial Concept', 'Finding', 'Pathologic Function', 'Qualitative Concept', 'Diagnostic Procedure', 'Body Location or Region', 'Functional Concept', 'Miscellaneous Concepts'.")
+
+# Number of concepts
+parser.add_argument("--nr_concepts", type=str, default='all',
+                    help="Number of concepts to predict. Example: all, 100, etc.")
 
 # Batch size
-parser.add_argument('--batchsize', type=int, default=4,
+parser.add_argument("--batchsize", type=int, default=4,
                     help="Batch-size for training and validation")
 
 # Image size
-parser.add_argument('--imgsize', type=int, default=224,
+parser.add_argument("--imgsize", type=int, default=224,
                     help="Size of the image after transforms")
 
 # Class Weights
@@ -60,20 +64,22 @@ parser.add_argument("--freeze_backbone", action="store_true",
                     help="Freeze backbone at training start")
 
 # Number of epochs
-parser.add_argument('--epochs', type=int, default=20,
+parser.add_argument("--epochs", type=int, default=20,
                     help="Number of training epochs")
-parser.add_argument('--epochs_freeze', type=int, default=5,
+
+# Number of epochs that backbone is frozen
+parser.add_argument("--epochs_freeze", type=int, default=5,
                     help="Number of training epochs where backbone is frozen")
 
 # Learning rate
-parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
+parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 
 # Output directory
-parser.add_argument("--outdir", type=str, default="results",
+parser.add_argument("--outdir", type=str, default="results/semantic",
                     help="Output directory")
 
 # Number of workers
-parser.add_argument("--num_workers", type=int, default=0,
+parser.add_argument("--num_workers", type=int, default=8,
                     help="Number of workers for dataloader")
 
 # GPU ID
@@ -93,7 +99,6 @@ parser.add_argument("--ckpt", type=str, default=None,
 # Parse the arguments
 args = parser.parse_args()
 
-
 # Resume training
 if args.resume:
     assert args.ckpt is not None, "Please specify the model checkpoint when resume is True"
@@ -102,7 +107,6 @@ resume = args.resume
 
 # Training checkpoint
 ckpt = args.ckpt
-
 
 # Data directory
 data_dir = args.data_dir
@@ -135,27 +139,23 @@ save_freq = args.save_freq
 
 # Timestamp (to save results)
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-outdir = os.path.join(outdir, "semantic_baseline", timestamp)
+outdir = os.path.join(outdir, timestamp)
 if not os.path.isdir(outdir):
     os.makedirs(outdir)
-
 
 # Save training parameters
 with open(os.path.join(outdir, "train_params.txt"), "w") as f:
     f.write(str(args))
-
 
 # Results and Weights
 weights_dir = os.path.join(outdir, "weights")
 if not os.path.isdir(weights_dir):
     os.makedirs(weights_dir)
 
-
 # History Files
 history_dir = os.path.join(outdir, "history")
 if not os.path.isdir(history_dir):
     os.makedirs(history_dir)
-
 
 # Tensorboard
 tbwritter = SummaryWriter(log_dir=os.path.join(
@@ -178,37 +178,38 @@ img_height = IMG_SIZE
 img_width = IMG_SIZE
 
 # Get data paths
-sem_concepts_path = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_top100_concepts_sem.csv")
+if args.nr_concepts == 'all':
+    sem_concepts_path = os.path.join(data_dir, "concepts_sem.csv")
+    train_csvpath = os.path.join(data_dir, "concept_detection_train.csv")
+else:
+    sem_concepts_path = os.path.join(data_dir, f"concepts_top{args.nr_concepts}_sem.csv")
+    train_csvpath = os.path.join(data_dir, f"concept_detection_train_top{args.nr_concepts}.csv")
 
-train_datapath = os.path.join(data_dir, "dataset_resized", "train_resized")
-train_csvpath = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_train_subset_top100_sem.csv")
-
-valid_datapath = os.path.join(data_dir, "dataset_resized", "valid_resized")
-valid_csvpath = os.path.join(
-    data_dir, "csv", "concepts", "top100", "new_val_subset_top100_sem.csv")
+valid_csvpath = train_csvpath.replace("train", "valid")
+train_datapath = os.path.join(data_dir, 'train')
+valid_datapath = os.path.join(data_dir, 'valid')
 
 # Get nr_classes
+print(f"SEMANTIC TYPE: {semantic_type}")
+print(f"Converting dataset to: {semantic_type}")
 _, _, sem_type_concepts_dict, _ = get_semantic_concept_dataset(
     concepts_sem_csv=sem_concepts_path, subset_sem_csv=train_csvpath, semantic_type=semantic_type)
 
 NR_CLASSES = len(sem_type_concepts_dict)
-print(f"SEMANTIC TYPE: {semantic_type}")
-print(f"NR CLASSES {NR_CLASSES}")
 
+print(f"NR CLASSES {NR_CLASSES}")
+assert NR_CLASSES > 0, "There should be more than 0 classes for this semantic type"
 
 # Choose model(s)
 model_name = args.model.lower()
 # DenseNet121
-if model_name == "densenet121".lower():
-
-    model = densenet121(progress=True, pretrained=True)
+if model_name == "densenet121":
+    model = densenet121(weights=DenseNet121_Weights.DEFAULT)
     model.classifier = torch.nn.Linear(1024, NR_CLASSES)
 
 # ResNet18
-elif model_name == "resnet18".lower():
-    model = resnet18(progress=True, pretrained=True)
+elif model_name == "resnet18":
+    model = resnet18(weights=ResNet18_Weights.DEFAULT)
     model.fc = torch.nn.Linear(512, NR_CLASSES)
 
 
@@ -253,7 +254,6 @@ print(f"Using class weights: cw={cw}")
 LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum", pos_weight=cw)
 VAL_LOSS = torch.nn.BCEWithLogitsLoss(reduction="sum")
 
-
 # Freeze backbone if needed to warm-up the training
 freeze_backbone = args.freeze_backbone
 if freeze_backbone:
@@ -270,9 +270,9 @@ else:
 # Resume training from given checkpoint
 if resume:
     checkpoint = torch.load(ckpt)
-    model.load_state_dict(checkpoint['model_state_dict'], strict=True)
-    OPTIMISER.load_state_dict(checkpoint['optimizer_state_dict'])
-    init_epoch = checkpoint['epoch'] + 1
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    OPTIMISER.load_state_dict(checkpoint["optimizer_state_dict"])
+    init_epoch = checkpoint["epoch"] + 1
     print(f"Resuming from {ckpt} at epoch {init_epoch}")
 else:
     init_epoch = 0
@@ -416,18 +416,18 @@ for epoch in range(init_epoch, EPOCHS):
 
             if SCHEDULER:
                 save_dict = {
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': OPTIMISER.state_dict(),
-                    'sched_state_dict': SCHEDULER.state_dict(),
-                    'loss': avg_train_loss,
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": OPTIMISER.state_dict(),
+                    "sched_state_dict": SCHEDULER.state_dict(),
+                    "loss": avg_train_loss,
                 }
             else:
                 save_dict = {
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': OPTIMISER.state_dict(),
-                    'loss': avg_train_loss,
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": OPTIMISER.state_dict(),
+                    "loss": avg_train_loss,
                 }
             torch.save(save_dict, model_path)
 
@@ -442,18 +442,18 @@ for epoch in range(init_epoch, EPOCHS):
 
             if SCHEDULER:
                 save_dict = {
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': OPTIMISER.state_dict(),
-                    'sched_state_dict': SCHEDULER.state_dict(),
-                    'loss': avg_train_loss,
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": OPTIMISER.state_dict(),
+                    "sched_state_dict": SCHEDULER.state_dict(),
+                    "loss": avg_train_loss,
                 }
             else:
                 save_dict = {
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': OPTIMISER.state_dict(),
-                    'loss': avg_train_loss,
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": OPTIMISER.state_dict(),
+                    "loss": avg_train_loss,
                 }
             torch.save(save_dict, model_path)
 
