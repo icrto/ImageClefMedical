@@ -21,7 +21,7 @@ def _create_folder(folder):
         os.makedirs(folder)
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    results_path = os.path.join(folder, 'multilabel', timestamp)
+    results_path = os.path.join(folder, timestamp)
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("--logdir",
                         type=str,
                         default=
-                        "results",
+                        "results/multilabel",
                         help="Directory where logs and models are to be stored." )
 
     # Model
