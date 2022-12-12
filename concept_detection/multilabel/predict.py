@@ -91,7 +91,7 @@ if __name__ == "__main__":
         test_data,
         batch_size=1,
         shuffle=False,
-        num_workers=0
+        num_workers=args.num_workers
     )
 
     image_ids = test_data.csv["ID"]
