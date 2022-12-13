@@ -11,10 +11,38 @@ from torch.utils.tensorboard import SummaryWriter
 from baseline import build_model, do_epoch
 from dataset import ImageDataset
 from asl import AsymmetricLoss
-from preprocessing.aux_functions import get_class_weights
 import numpy as np
 import argparse
 import datetime
+import pandas as pd
+
+# Function: Compute class_weights
+def get_class_weights(dataset_csv, concept_csv, n_concepts):
+    # Get DatFrame from train dataset file
+    df_dataset = pd.read_csv(dataset_csv, header=0, sep="\t")
+
+    # Number of examples
+    N = len(df_dataset)
+
+    # Get DataFrame from concept's file
+    df_all_concepts = pd.read_csv(concept_csv, header=0, sep="\t")
+    all_concepts = df_all_concepts["concept"]
+
+    # Convert concepts to a matrix of 1s and 0s denoting the presence/absence of each concept in the image
+    dict_concept = dict()
+    for idx, c in enumerate(all_concepts):
+        dict_concept[c] = idx
+
+    matrix = np.zeros((len(df_dataset["ID"]), len(all_concepts)))
+    for i in range(len(df_dataset["ID"])):
+        dict_concepts_per_image = df_dataset["cuis"][i].split(";")
+        for c in dict_concepts_per_image:
+            matrix[i][dict_concept[c]] = 1
+
+    activated_concepts = np.count_nonzero(matrix, axis=0)
+    class_weights = N / (n_concepts * activated_concepts)
+
+    return class_weights
 
 def _create_folder(folder):
     if not os.path.exists(folder):
