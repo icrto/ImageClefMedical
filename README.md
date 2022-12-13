@@ -69,7 +69,7 @@ Next, the concepts need to be mapped to their corresponding semantic types. This
 
 To train the whole semantic pipeline (9 models), you can follow the example in ```semantic_baseline_train.sh``` and run it with ```./semantic_baseline_train.sh```. You can also train each model individually by calling the ```train.py``` script directly.
 
-The ```predict.py``` script will load all 9 models and generate a csv file for each. To use the script just run ```python concept_detection/semantic/predict.py --models_dir <path_to_previously_trained_models>```. This script works similarly to the ```predict.py```script of the multilabel baseline. Check the instructions in the multilabel section to better understand its otpions.
+The ```predict.py``` script will load all 9 models and generate a csv file for each. To use the script just run ```python concept_detection/semantic/predict.py --models_dir <path_to_previously_trained_models>```. This script works similarly to the ```predict.py``` script of the multilabel baseline. Check the instructions in the multilabel section to better understand its otpions.
 
 Finally, use the ```aggregate.py``` script to aggregate all predictions into a single csv file that can be given to the ```evaluator.py``` file. Point the ```--preds_dir``` arg to the directory where the 9 csv predictions files are stored.
 
