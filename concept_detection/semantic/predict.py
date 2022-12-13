@@ -133,9 +133,14 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
     # Loading prints
     print(f"\nLoading the semantic type <{semantic_type}> from {modelckpt}")
 
+    if 'test' in args.images_csv:
+        subset = 'test'
+    else:
+        subset = None
+
     # Get nr_classes
     _, _, sem_type_concepts_dict, inv_sem_type_concepts_dict = get_semantic_concept_dataset(
-        concepts_sem_csv=sem_concepts_path, subset_sem_csv=args.images_csv, semantic_type=semantic_type)
+        concepts_sem_csv=sem_concepts_path, subset_sem_csv=args.images_csv, semantic_type=semantic_type, subset=subset)
 
     NR_CLASSES = len(sem_type_concepts_dict)
     print(f"NR CLASSES {NR_CLASSES}")
@@ -184,7 +189,7 @@ for semantic_type, modelckpt in zip(SEMANTIC_TYPES, MODELS):
         datapath = os.path.join(data_dir, 'valid')
 
     eval_set = ImgClefConcDataset(img_datapath=datapath, concepts_sem_csv=sem_concepts_path,
-                                      subset_sem_csv=args.images_csv, semantic_type=semantic_type, transform=eval_transforms)
+                                      subset_sem_csv=args.images_csv, semantic_type=semantic_type, transform=eval_transforms, subset=subset)
 
     # Dataloaders
     eval_loader = DataLoader(dataset=eval_set, batch_size=BATCH_SIZE,
