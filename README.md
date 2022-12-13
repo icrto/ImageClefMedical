@@ -52,7 +52,7 @@ Run ```python preprocessing/gen_test_images_csv.py --datadir dataset/test``` to 
 
 To train the multilabel model run ```python concept_detection/multilabel/train.py```. If you want to specify the number of top-K concepts to use, just add ```--nr_concepts <number_of_concepts_to_consider>```.
 
-To make predictions, use the ```predict.py``` script. This script has two important arguments: the images_csv and nr_concepts. The first specifies for which images you want to generate predictions. For example, you might want to generate predictions only for the images that contain at least one of the top-100 concepts. The nr_concepts argument must be set in accordance to what the model was trained with. So, if for example, you trained your model to consider only the top-100 concepts, then nr_concepts should be 100. Then, for inference, two situations arise:
+To make predictions, use the ```predict.py``` script. This script has two important arguments: the images_csv and nr_concepts. The first specifies for which images you want to generate predictions. For example, you might want to generate predictions only for the images that contain at least one of the top-100 concepts. The nr_concepts argument must be set in accordance to what the model was trained with. So, if for example you trained your model to consider only the top-100 concepts, then nr_concepts should be 100. Then, for inference, two situations arise:
 1. you want to generate predictions for the subset of images of the top-100 concepts: ```python predict.py --nr_concepts 100 --images_csv dataset/concept_detection_valid_top100.csv```
 2. although your model was trained with 100 concepts you want to generate predictions for all validation images: ```python predict.py --nr_concepts 100 --images_csv dataset/concept_detection_valid.csv```
 
@@ -69,7 +69,7 @@ Next, the concepts need to be mapped to their corresponding semantic types. This
 
 To train the whole semantic pipeline (9 models), you can follow the example in ```semantic_baseline_train.sh``` and run it with ```./semantic_baseline_train.sh```. You can also train each model individually by calling the ```train.py``` script directly.
 
-The ```predict.py``` script will load all 9 models and generate a csv file for each. To use the script just run ```python concept_detection/semantic/predict.py --models_dir <path_to_previously_trained_models>```. Change ```--nr_concepts``` to 100 if using the top-100 subset.
+The ```predict.py``` script will load all 9 models and generate a csv file for each. To use the script just run ```python concept_detection/semantic/predict.py --models_dir <path_to_previously_trained_models>```. This script works similarly to the ```predict.py```script of the multilabel baseline. Check the instructions in the multilabel section to better understand its otpions.
 
 Finally, use the ```aggregate.py``` script to aggregate all predictions into a single csv file that can be given to the ```evaluator.py``` file. Point the ```--preds_dir``` arg to the directory where the 9 csv predictions files are stored.
 
