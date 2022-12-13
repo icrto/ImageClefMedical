@@ -8,7 +8,6 @@ import PIL
 import torch
 from torch.utils.data import Dataset
 
-
 # Function: Create subset according to semantic types
 def get_semantic_concept_dataset(concepts_sem_csv, subset_sem_csv, semantic_type, **kwargs):
 
